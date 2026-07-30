@@ -1,0 +1,41 @@
+<svg viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="900" fill="#f7f9fb"/>
+  <rect width="1440" height="900" fill="url(#hero-grad-1)" opacity="0.5"/>
+  <rect width="1440" height="900" fill="url(#hero-grad-2)" opacity="0.3"/>
+  <g opacity="0.06">
+    <line x1="0" y1="100" x2="1440" y2="100" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="200" x2="1440" y2="200" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="300" x2="1440" y2="300" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="400" x2="1440" y2="400" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="500" x2="1440" y2="500" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="600" x2="1440" y2="600" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="700" x2="1440" y2="700" stroke="#aa3000" stroke-width="1"/>
+    <line x1="0" y1="800" x2="1440" y2="800" stroke="#aa3000" stroke-width="1"/>
+    <line x1="200" y1="0" x2="200" y2="900" stroke="#aa3000" stroke-width="1"/>
+    <line x1="400" y1="0" x2="400" y2="900" stroke="#aa3000" stroke-width="1"/>
+    <line x1="600" y1="0" x2="600" y2="900" stroke="#aa3000" stroke-width="1"/>
+    <line x1="800" y1="0" x2="800" y2="900" stroke="#aa3000" stroke-width="1"/>
+    <line x1="1000" y1="0" x2="1000" y2="900" stroke="#aa3000" stroke-width="1"/>
+    <line x1="1200" y1="0" x2="1200" y2="900" stroke="#aa3000" stroke-width="1"/>
+    <line x1="1400" y1="0" x2="1400" y2="900" stroke="#aa3000" stroke-width="1"/>
+  </g>
+  <path d="M0 600c200-80 400 60 600 0s400-100 600-40 200 60 240 80" stroke="#aa3000" stroke-width="2" opacity="0.08" fill="none"/>
+  <path d="M0 650c200-60 400 40 600 0s400-80 600-30 200 50 240 60" stroke="#aa3000" stroke-width="1.5" opacity="0.05" fill="none"/>
+  <circle cx="720" cy="200" r="300" fill="url(#hero-radial)" opacity="0.07"/>
+  <defs>
+    <linearGradient id="hero-grad-1" x1="0" y1="0" x2="1440" y2="900">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="50%" stop-color="#f7f9fb"/>
+      <stop offset="100%" stop-color="#ffdbd0"/>
+    </linearGradient>
+    <linearGradient id="hero-grad-2" x1="1440" y1="0" x2="0" y2="900">
+      <stop offset="0%" stop-color="#f7f9fb"/>
+      <stop offset="50%" stop-color="#e0e3e5"/>
+      <stop offset="100%" stop-color="#ffb59e" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="hero-radial" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#aa3000"/>
+      <stop offset="100%" stop-color="#aa3000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

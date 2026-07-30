@@ -1,0 +1,10 @@
+<svg viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="160" rx="6" fill="#f7f9fb" stroke="#e0e3e5" stroke-width="1"/>
+  <circle cx="120" cy="80" r="50" stroke="#e0e3e5" stroke-width="2"/>
+  <circle cx="120" cy="80" r="50" stroke="#aa3000" stroke-width="2" stroke-dasharray="180 134" stroke-dashoffset="0"/>
+  <circle cx="120" cy="80" r="30" stroke="#e0e3e5" stroke-width="1.5"/>
+  <circle cx="120" cy="80" r="8" fill="#aa3000"/>
+  <path d="M170 60l20-30" stroke="#aa3000" stroke-width="2" stroke-linecap="square"/>
+  <path d="M185 35l5-5" stroke="#aa3000" stroke-width="2" stroke-linecap="square"/>
+  <text x="120" y="148" text-anchor="middle" font-family="Geist, sans-serif" font-size="9" fill="#5c4037" opacity="0.5">Meta de Corrida</text>
+</svg>

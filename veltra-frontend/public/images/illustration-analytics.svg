@@ -1,0 +1,12 @@
+<svg viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="160" rx="6" fill="#f7f9fb" stroke="#e0e3e5" stroke-width="1"/>
+  <rect x="20" y="90" width="24" height="40" fill="#aa3000" opacity="0.3"/>
+  <rect x="52" y="70" width="24" height="60" fill="#aa3000" opacity="0.5"/>
+  <rect x="84" y="40" width="24" height="90" fill="#aa3000" opacity="0.7"/>
+  <rect x="116" y="55" width="24" height="75" fill="#aa3000"/>
+  <rect x="148" y="80" width="24" height="50" fill="#aa3000" opacity="0.5"/>
+  <rect x="180" y="60" width="24" height="70" fill="#aa3000" opacity="0.4"/>
+  <path d="M32 130l32-16 32-24 32-8 32-20 32-12" stroke="#d43f00" stroke-width="2" stroke-linecap="square"/>
+  <circle cx="192" cy="50" r="3" fill="#d43f00"/>
+  <text x="120" y="148" text-anchor="middle" font-family="Geist, sans-serif" font-size="9" fill="#5c4037" opacity="0.5">Evolução Semanal</text>
+</svg>

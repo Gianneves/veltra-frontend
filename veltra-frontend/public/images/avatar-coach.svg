@@ -1,0 +1,16 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="30" fill="#f7f9fb" stroke="#e0e3e5" stroke-width="1.5"/>
+  <circle cx="32" cy="32" r="30" fill="url(#coach-grad)" opacity="0.1"/>
+  <circle cx="32" cy="22" r="10" stroke="#aa3000" stroke-width="2"/>
+  <circle cx="32" cy="22" r="4" fill="#aa3000"/>
+  <path d="M18 46c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="#aa3000" stroke-width="2" stroke-linecap="square"/>
+  <path d="M42 18l4-6m-4 6l-4-6" stroke="#d43f00" stroke-width="1.5" stroke-linecap="square"/>
+  <path d="M44 36l4-6m-4 6l-4-6" stroke="#d43f00" stroke-width="1.5" stroke-linecap="square" opacity="0.6"/>
+  <path d="M40 40l4-6m-4 6l-4-6" stroke="#d43f00" stroke-width="1.5" stroke-linecap="square" opacity="0.3"/>
+  <defs>
+    <linearGradient id="coach-grad" x1="0" y1="0" x2="64" y2="64">
+      <stop offset="0%" stop-color="#aa3000"/>
+      <stop offset="100%" stop-color="#d43f00"/>
+    </linearGradient>
+  </defs>
+</svg>
