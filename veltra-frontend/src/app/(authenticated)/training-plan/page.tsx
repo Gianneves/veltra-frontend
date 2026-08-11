@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
@@ -181,13 +182,23 @@ function SessionCard({
   );
 }
 
+const WEEKS_PER_PAGE = 5;
+
 export default function TrainingPlanPage() {
+  const router = useRouter();
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([0]));
+  const [page, setPage] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(plans.length / WEEKS_PER_PAGE));
 
   useEffect(() => {
     getAllPlans().then(setPlans);
   }, []);
+
+  useEffect(() => {
+    if (page > totalPages - 1) setPage(totalPages - 1);
+  }, [plans.length, page, totalPages]);
 
   const toggleWeek = (index: number) => {
     setExpandedWeeks((prev) => {
@@ -207,10 +218,14 @@ export default function TrainingPlanPage() {
     return (
       <div>
         <Header title="Plano de Treino" subtitle="Sua programação semanal" />
-        <PerformanceCard label="Nenhum plano">
-          <p className="text-sm text-on-surface-variant">
-            Crie uma meta para gerar seu plano de treino personalizado.
+        <PerformanceCard label="Nenhum plano ainda">
+          <p className="text-sm text-on-surface-variant mb-4">
+            Você ainda não definiu uma meta. Defina sua meta para gerar seu plano de
+            treino personalizado.
           </p>
+          <Button variant="primary" onClick={() => router.push("/goal")}>
+            Definir Meta
+          </Button>
         </PerformanceCard>
       </div>
     );
@@ -221,7 +236,10 @@ export default function TrainingPlanPage() {
       <Header title="Plano de Treino" subtitle="Sua programação até a meta" />
 
       <div className="space-y-3">
-        {plans.map((plan, index) => {
+        {plans
+          .slice(page * WEEKS_PER_PAGE, (page + 1) * WEEKS_PER_PAGE)
+          .map((plan, i) => {
+          const index = page * WEEKS_PER_PAGE + i;
           const isExpanded = expandedWeeks.has(index);
           const runSessions = plan.sessions.filter((s) => s.type !== "rest");
           const totalDist = runSessions.reduce((acc, s) => acc + s.plannedDistance, 0);
@@ -264,6 +282,31 @@ export default function TrainingPlanPage() {
           );
         })}
       </div>
+
+      {plans.length > WEEKS_PER_PAGE && (
+        <div className="flex items-center justify-center gap-4 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+          >
+            <ChevronLeft size={16} /> Anterior
+          </Button>
+          <span className="text-sm text-on-surface-variant">
+            Semanas {page * WEEKS_PER_PAGE + 1}–
+            {Math.min((page + 1) * WEEKS_PER_PAGE, plans.length)} de {plans.length}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+          >
+            Próxima <ChevronRight size={16} />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
