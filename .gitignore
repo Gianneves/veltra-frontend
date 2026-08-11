@@ -2,4 +2,6 @@ node_modules/
 .next/
 *.tsbuildinfo
 .env
+.env*
+*.env.local
 veltra-backend/
