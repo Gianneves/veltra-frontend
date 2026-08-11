@@ -6,10 +6,21 @@ import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
 import { Button } from "@/components/ui/button";
-import { getGoals, createGoal } from "@/lib/api/goals";
-import { CheckCircle2, Circle, ChevronRight, ChevronLeft } from "lucide-react";
+import { getGoals, createGoal, updateGoal, deleteGoal } from "@/lib/api/goals";
+import { CheckCircle2, Circle, ChevronRight, ChevronLeft, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Goal } from "@/lib/api/types";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 const ALL_DAYS = [
   { short: "Seg", full: "Segunda" },
@@ -56,24 +67,43 @@ function StepIndicator({ step }: { step: number }) {
   );
 }
 
-function GoalForm({ onComplete }: { onComplete: () => void }) {
+function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [title, setTitle] = useState("");
-  const [distanceOption, setDistanceOption] = useState<number | null>(null);
-  const [customDistance, setCustomDistance] = useState("");
-  const [targetDate, setTargetDate] = useState("");
-  const [discipline, setDiscipline] = useState("");
+  const [title, setTitle] = useState(goal?.title ?? "");
+  const [distanceOption, setDistanceOption] = useState<number | null>(() => {
+    if (!goal) return null;
+    return DISTANCE_OPTIONS.some((opt) => opt.value === goal.targetDistance && opt.value !== 0)
+      ? goal.targetDistance
+      : 0;
+  });
+  const [customDistance, setCustomDistance] = useState(() => {
+    if (!goal) return "";
+    const known = DISTANCE_OPTIONS.some((opt) => opt.value === goal.targetDistance && opt.value !== 0);
+    return known ? "" : String(goal.targetDistance / 1000);
+  });
+  const [targetDate, setTargetDate] = useState(() => (goal ? goal.targetDate.slice(0, 10) : ""));
+  const [discipline, setDiscipline] = useState(goal?.discipline ?? "");
 
-  const [runDays, setRunDays] = useState<string[]>(DEFAULT_RUN_DAYS);
-  const [longRunDay, setLongRunDay] = useState("Sáb");
+  const [runDays, setRunDays] = useState<string[]>(
+    goal?.runDays?.length ? goal.runDays : DEFAULT_RUN_DAYS
+  );
+  const [longRunDay, setLongRunDay] = useState(goal?.longRunDay ?? "Sáb");
 
-  const [threeKmMin, setThreeKmMin] = useState("");
-  const [threeKmSeg, setThreeKmSeg] = useState("");
-  const [longestKm, setLongestKm] = useState("");
-  const [longestMin, setLongestMin] = useState("");
+  const [threeKmMin, setThreeKmMin] = useState(() =>
+    goal ? String(Math.floor(goal.threeKmTime / 60)) : ""
+  );
+  const [threeKmSeg, setThreeKmSeg] = useState(() =>
+    goal ? String(goal.threeKmTime % 60) : ""
+  );
+  const [longestKm, setLongestKm] = useState(() =>
+    goal?.longestRunDistance ? String(goal.longestRunDistance / 1000) : ""
+  );
+  const [longestMin, setLongestMin] = useState(() =>
+    goal?.longestRunTime ? String(Math.floor(goal.longestRunTime / 60)) : ""
+  );
 
   const targetDistance = distanceOption === 0 ? Number(customDistance) * 1000 : (distanceOption || 0);
   const threeKmTime = Number(threeKmMin) * 60 + Number(threeKmSeg);
@@ -90,28 +120,39 @@ function GoalForm({ onComplete }: { onComplete: () => void }) {
     if (!title || !targetDistance || !targetDate || !threeKmMin || !threeKmSeg) return;
     setLoading(true);
 
+    const data = {
+      title,
+      targetDistance,
+      targetDate: new Date(targetDate).toISOString(),
+      discipline: discipline || title,
+      threeKmTime,
+      longestRunDistance,
+      longestRunTime,
+      runDays,
+      longRunDay,
+      daysPerWeek: runDays.length,
+    };
+
     try {
-      const result = await createGoal({
-        title,
-        targetDistance,
-        targetDate: new Date(targetDate).toISOString(),
-        discipline: discipline || title,
-        threeKmTime,
-        longestRunDistance,
-        longestRunTime,
-        runDays,
-        longRunDay,
-        daysPerWeek: runDays.length,
-      });
-      if (!result) {
-        alert("Erro ao criar meta no servidor. Verifique se o backend está rodando.");
-        return;
+      if (goal) {
+        const result = await updateGoal(goal.id, data);
+        if (!result) {
+          alert("Erro ao atualizar meta no servidor. Verifique se o backend está rodando.");
+          return;
+        }
+        onComplete();
+      } else {
+        const result = await createGoal(data);
+        if (!result) {
+          alert("Erro ao criar meta no servidor. Verifique se o backend está rodando.");
+          return;
+        }
+        onComplete();
+        router.push("/training-plan");
       }
-      onComplete();
-      router.push("/training-plan");
     } catch (err: unknown) {
-      console.error("Erro ao criar meta:", err);
-      alert("Erro ao criar meta. Verifique se o servidor está rodando.");
+      console.error("Erro ao salvar meta:", err);
+      alert("Erro ao salvar meta. Verifique se o servidor está rodando.");
     } finally {
       setLoading(false);
     }
@@ -362,7 +403,7 @@ function GoalForm({ onComplete }: { onComplete: () => void }) {
               loading={loading}
               disabled={!threeKmMin || !threeKmSeg}
             >
-              {loading ? "Criando..." : "Salvar Meta e Gerar Plano"}
+              {loading ? "Salvando..." : goal ? "Salvar Alterações" : "Salvar Meta e Gerar Plano"}
             </Button>
           </div>
         </div>
@@ -371,8 +412,18 @@ function GoalForm({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function GoalDisplay({ goal }: { goal: Goal }) {
+function GoalDisplay({
+  goal,
+  onEdit,
+  onDeleted,
+}: {
+  goal: Goal;
+  onEdit: () => void;
+  onDeleted: () => void;
+}) {
   const router = useRouter();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const progressPct = Math.min(
     100,
@@ -382,13 +433,58 @@ function GoalDisplay({ goal }: { goal: Goal }) {
   const circumference = 2 * Math.PI * 80;
   const offset = circumference - (progressPct / 100) * circumference;
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    const ok = await deleteGoal(goal.id);
+    setDeleting(false);
+    if (ok) {
+      setDeleteOpen(false);
+      onDeleted();
+    } else {
+      alert("Erro ao excluir meta. Verifique se o servidor está rodando.");
+    }
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <Header title="Minha Meta" subtitle={goal.title} />
-        <Button variant="primary" onClick={() => router.push("/training-plan")}>
-          Ver Plano de Treino <ChevronRight size={18} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={onEdit}>
+            <Pencil size={18} /> Editar
+          </Button>
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">
+                <Trash2 size={18} /> Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir meta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. A meta "{goal.title}" e seu plano de
+                  treino associado serão removidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleDelete();
+                  }}
+                  disabled={deleting}
+                >
+                  {deleting ? "Excluindo..." : "Excluir"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button variant="primary" onClick={() => router.push("/training-plan")}>
+            Ver Plano de Treino <ChevronRight size={18} />
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -480,24 +576,51 @@ function GoalDisplay({ goal }: { goal: Goal }) {
 export default function GoalPage() {
   const [goal, setGoal] = useState<Goal | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
 
   const fetchGoal = async () => {
     const goals = await getGoals();
     if (goals.length > 0) setGoal(goals[0]);
+    else setGoal(null);
   };
 
   useEffect(() => {
     fetchGoal();
   }, []);
 
-  if (!goal || showForm) {
+  const handleEdit = (g: Goal) => {
+    setEditingGoal(g);
+    setShowForm(true);
+  };
+
+  const handleDeleted = () => {
+    setGoal(null);
+    setEditingGoal(null);
+    setShowForm(false);
+  };
+
+  if (showForm || !goal) {
     return (
       <div>
-        <Header title="Definir Meta" subtitle="Configure seu objetivo de corrida" />
-        <GoalForm onComplete={fetchGoal} />
+        <Header
+          title={editingGoal ? "Editar Meta" : "Definir Meta"}
+          subtitle={
+            editingGoal
+              ? "Atualize seu objetivo de corrida"
+              : "Configure seu objetivo de corrida"
+          }
+        />
+        <GoalForm
+          goal={editingGoal ?? undefined}
+          onComplete={async () => {
+            await fetchGoal();
+            setEditingGoal(null);
+            setShowForm(false);
+          }}
+        />
       </div>
     );
   }
 
-  return <GoalDisplay goal={goal} />;
+  return <GoalDisplay goal={goal} onEdit={() => handleEdit(goal)} onDeleted={handleDeleted} />;
 }

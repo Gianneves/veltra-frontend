@@ -35,12 +35,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-surface-container-high bg-surface-container-low">
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-surface-container-high">
+      <div className="flex justify-center px-6 py-6 border-b border-surface-container-high">
         <img src="/images/logo.svg" alt="Veltra" className="h-10 w-auto" />
-        <div>
-          <p className="font-sora font-bold text-base text-on-surface">Veltra</p>
-          <p className="font-geist text-xs text-on-surface-variant">AI Running Coach</p>
-        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
