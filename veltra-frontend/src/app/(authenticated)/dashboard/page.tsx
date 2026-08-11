@@ -13,15 +13,22 @@ import { ArrowRight } from "lucide-react";
 import type { Activity, TrainingPlan, WeeklyStats } from "@/lib/api/types";
 
 function formatPace(secondsPerKm: number): string {
+  if (!secondsPerKm) return "-";
   const min = Math.floor(secondsPerKm / 60);
-  const sec = secondsPerKm % 60;
+  const sec = Math.round(secondsPerKm % 60);
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
+function formatPaceFromMps(mps: number): string {
+  if (!mps) return "-";
+  return formatPace(1000 / mps);
+}
+
 function formatTime(seconds: number): string {
+  if (!seconds) return "0min";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m}min`;
+  return h > 0 ? `${h}h${m}min` : `${m}min`;
 }
 
 export default function DashboardPage() {
@@ -31,7 +38,12 @@ export default function DashboardPage() {
   const [weekly, setWeekly] = useState<WeeklyStats | null>(null);
 
   useEffect(() => {
-    getActivities().then(setActivities);
+    getActivities().then((acts) => {
+      const sorted = [...acts].sort(
+        (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+      );
+      setActivities(sorted);
+    });
     getTrainingPlan().then(setPlan);
     getWeeklyStats().then(setWeekly);
   }, []);
@@ -77,8 +89,8 @@ export default function DashboardPage() {
                   {nextSession.type.replace("_", " ")}
                 </p>
                 <p className="text-sm text-on-surface-variant mt-1">
-                  {nextSession.day} • {(nextSession.plannedDistance / 1000).toFixed(0)}km
-                  {nextSession.plannedPace > 0 && ` • ${formatPace(nextSession.plannedPace)}/km`}
+                  {nextSession.day} &bull; {(nextSession.plannedDistance / 1000).toFixed(0)}km
+                  {nextSession.plannedPace > 0 && ` \u2022 ${formatPace(nextSession.plannedPace)}/km`}
                 </p>
               </div>
               <ArrowRight className="text-primary" size={20} />
@@ -95,14 +107,16 @@ export default function DashboardPage() {
             <div>
               <p className="font-sora font-semibold text-lg text-on-surface">{lastRun.name}</p>
               <p className="text-sm text-on-surface-variant">
-                {new Date(lastRun.startDate).toLocaleDateString("pt-BR")}
+                {lastRun.startDate
+                  ? new Date(lastRun.startDate).toLocaleDateString("pt-BR")
+                  : "-"}
               </p>
             </div>
             <MetricChip label="Distância" value={`${(lastRun.distance / 1000).toFixed(1)}km`} />
-            <MetricChip label="Ritmo" value={formatPace(Math.round(lastRun.averageSpeed ? 1000 / lastRun.averageSpeed : 0))} />
+            <MetricChip label="Ritmo" value={formatPaceFromMps(lastRun.averageSpeed)} />
             <MetricChip label="Duração" value={formatTime(lastRun.movingTime)} />
-            <MetricChip label="FC média" value={`${lastRun.averageHeartrate}`} />
-            <MetricChip label="Elevação" value={`${lastRun.totalElevationGain}m`} />
+            <MetricChip label="FC média" value={lastRun.averageHeartrate != null ? `${lastRun.averageHeartrate}` : "-"} />
+            <MetricChip label="Elevação" value={lastRun.totalElevationGain != null ? `${lastRun.totalElevationGain}m` : "-"} />
           </div>
         </PerformanceCard>
       )}

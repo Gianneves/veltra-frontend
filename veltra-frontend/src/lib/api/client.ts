@@ -7,10 +7,28 @@ interface ApiError {
   message: string;
 }
 
+function toCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function transformKeys<T>(obj: unknown): T {
+  if (Array.isArray(obj)) return obj.map(transformKeys) as unknown as T;
+  if (obj !== null && typeof obj === "object") {
+    return Object.keys(obj as Record<string, unknown>).reduce(
+      (acc, key) => {
+        acc[toCamel(key)] = transformKeys((obj as Record<string, unknown>)[key]);
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    ) as T;
+  }
+  return obj as T;
+}
+
 async function request<T>(
   method: string,
   path: string,
-  body?: unknown
+  body?: unknown,
 ): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
@@ -24,7 +42,8 @@ async function request<T>(
     throw err;
   }
 
-  return res.json() as Promise<T>;
+  const json = await res.json();
+  return transformKeys<T>(json);
 }
 
 export const api = {

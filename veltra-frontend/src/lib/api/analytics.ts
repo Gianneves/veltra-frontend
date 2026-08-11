@@ -25,7 +25,8 @@ export async function getWeeklyStats(): Promise<WeeklyStats | null> {
 export async function getAllActivities(): Promise<Activity[]> {
   if (USE_MOCK) return Promise.resolve(mockActivities);
   try {
-    return await api.get<Activity[]>("/activities");
+    const res = await api.get<{ data: Activity[] }>("/activities?limit=9999");
+    return res.data;
   } catch {
     return [];
   }
