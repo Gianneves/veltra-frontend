@@ -38,3 +38,13 @@ export async function updateGoal(id: string, data: Partial<Goal>): Promise<Goal 
     return null;
   }
 }
+
+export async function deleteGoal(id: string): Promise<boolean> {
+  try {
+    await api.del<Goal>(`/goals/${id}`);
+    return true;
+  } catch (err) {
+    console.error("deleteGoal error:", err);
+    return false;
+  }
+}
