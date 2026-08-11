@@ -101,6 +101,12 @@ export const mockGoals: Goal[] = [
     targetDate: "2026-09-15",
     discipline: "Maratona",
     currentProgress: 25000,
+    daysPerWeek: 5,
+    runDays: ["Seg", "Ter", "Qui", "Sex", "Sáb"],
+    longRunDay: "Sáb",
+    threeKmTime: 1080,
+    longestRunDistance: 25000,
+    longestRunTime: 7500,
     milestones: [
       { id: "m-001", description: "Base de 30km/semana", target: 30_000, achieved: true },
       { id: "m-002", description: "Longão de 21km", target: 21_000, achieved: true },

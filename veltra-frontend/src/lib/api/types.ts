@@ -32,6 +32,7 @@ export interface TrainingSession {
 export interface TrainingPlan {
   id: string;
   weekStart: string;
+  goalId?: string;
   sessions: TrainingSession[];
 }
 
@@ -49,6 +50,12 @@ export interface Goal {
   targetDate: string;
   discipline: string;
   currentProgress: number;
+  daysPerWeek: number;
+  runDays?: string[];
+  longRunDay?: string;
+  threeKmTime: number;
+  longestRunDistance?: number;
+  longestRunTime?: number;
   milestones: Milestone[];
 }
 

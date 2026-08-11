@@ -11,10 +11,22 @@ export async function getGoals(): Promise<Goal[]> {
   return api.get<Goal[]>("/goals");
 }
 
-export async function createGoal(data: { title: string; targetDistance: number; targetDate: string; discipline: string }): Promise<Goal | null> {
+export async function createGoal(data: {
+  title: string;
+  targetDistance: number;
+  targetDate: string;
+  discipline: string;
+  threeKmTime: number;
+  longestRunDistance?: number;
+  longestRunTime?: number;
+  runDays?: string[];
+  longRunDay?: string;
+  daysPerWeek?: number;
+}): Promise<Goal | null> {
   try {
     return await api.post<Goal>("/goals", data);
-  } catch {
+  } catch (err) {
+    console.error("createGoal error:", err);
     return null;
   }
 }
