@@ -101,7 +101,7 @@ export default function CoachChatPage() {
             </div>
             {msg.role === "user" && (
               <img
-                src="/images/logo-icon.svg"
+                src="/images/veltra-icon-light-bg.svg"
                 alt="User"
                 className="h-8 w-8 shrink-0 rounded-full bg-surface-container-highest p-1"
               />

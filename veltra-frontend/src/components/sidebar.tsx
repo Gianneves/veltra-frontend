@@ -35,8 +35,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-surface-container-high bg-surface-container-low">
-      <div className="flex justify-center px-6 py-6 border-b border-surface-container-high">
-        <img src="/images/logo.svg" alt="Veltra" className="h-10 w-auto" />
+      <div className="flex justify-center px-4 py-5 border-b border-surface-container-high">
+        <img src="/images/veltra-logo-horizontal.svg" alt="Veltra" className="h-16 w-auto max-w-full" />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
@@ -64,7 +64,7 @@ export function Sidebar() {
       <div className="border-t border-surface-container-high px-4 py-4">
         <div className="flex items-center gap-3 px-2">
           <img
-            src="/images/logo-icon.svg"
+            src="/images/veltra-icon-light-bg.svg"
             alt="Avatar"
             className="h-8 w-8 rounded-full bg-surface-container-highest p-1"
           />

@@ -19,20 +19,39 @@ export interface Activity {
   type: string;
 }
 
+export type TrainingSessionType =
+  | "easy"
+  | "interval"
+  | "tempo"
+  | "fartlek"
+  | "long_run"
+  | "rest"
+  | "recovery"
+  | "race";
+
 export interface TrainingSession {
   id: string;
   day: string;
-  type: "easy" | "interval" | "long_run" | "rest" | "recovery";
+  type: TrainingSessionType;
   plannedDistance: number;
   plannedPace: number;
   notes: string;
   completed: boolean;
+  activityId?: string | null;
+  actualDistance?: number | null;
+  actualPace?: number | null;
+  actualMovingTime?: number | null;
+  matchScore?: number | null;
+  matchMethod?: string | null;
+  matchedAt?: string | null;
 }
 
 export interface TrainingPlan {
   id: string;
   weekStart: string;
   goalId?: string;
+  focus?: string;
+  coachNotes?: string;
   sessions: TrainingSession[];
 }
 
@@ -48,12 +67,14 @@ export interface Goal {
   title: string;
   targetDistance: number;
   targetDate: string;
+  startDate?: string | null;
   discipline: string;
   currentProgress: number;
   daysPerWeek: number;
   runDays?: string[];
   longRunDay?: string;
   threeKmTime: number;
+  targetTime?: number | null;
   longestRunDistance?: number;
   longestRunTime?: number;
   milestones: Milestone[];

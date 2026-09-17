@@ -129,9 +129,9 @@ export default function ComparisonPage() {
                   type="monotone"
                   dataKey="atv1"
                   name={actA.name}
-                  stroke="#aa3000"
+                  stroke="#bb3619"
                   strokeWidth={2}
-                  dot={{ fill: "#aa3000", r: 4 }}
+                  dot={{ fill: "#bb3619", r: 4 }}
                 />
                 <Line
                   type="monotone"

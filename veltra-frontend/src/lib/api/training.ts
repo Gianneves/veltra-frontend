@@ -32,6 +32,37 @@ export async function getPlanByWeek(weekStart: string): Promise<TrainingPlan | n
   }
 }
 
+export async function regeneratePlan(): Promise<{
+  regenerated: boolean;
+  weeks?: number;
+  reason?: string;
+} | null> {
+  try {
+    return await api.post<{
+      regenerated: boolean;
+      weeks?: number;
+      reason?: string;
+    }>("/training-plans/regenerate");
+  } catch {
+    return null;
+  }
+}
+
+export async function linkSessionActivity(
+  planId: string,
+  sessionId: string,
+  activityId: string | null,
+): Promise<TrainingSession | null> {
+  try {
+    return await api.put<TrainingSession>(
+      `/training-plans/${planId}/sessions/${sessionId}/activity`,
+      { activityId },
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function updateSession(
   planId: string,
   sessionId: string,
