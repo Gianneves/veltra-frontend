@@ -69,7 +69,7 @@ export default function AnalyticsPage() {
                   fontSize: 14,
                 }}
               />
-              <Bar dataKey="km" fill="#aa3000" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="km" fill="#bb3619" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </PerformanceCard>
@@ -90,9 +90,9 @@ export default function AnalyticsPage() {
               <Line
                 type="monotone"
                 dataKey="pace"
-                stroke="#aa3000"
+                stroke="#bb3619"
                 strokeWidth={2}
-                dot={{ fill: "#aa3000", r: 4 }}
+                dot={{ fill: "#bb3619", r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>

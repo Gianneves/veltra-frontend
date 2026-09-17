@@ -15,8 +15,10 @@ export async function createGoal(data: {
   title: string;
   targetDistance: number;
   targetDate: string;
+  startDate?: string | null;
   discipline: string;
   threeKmTime: number;
+  targetTime?: number | null;
   longestRunDistance?: number;
   longestRunTime?: number;
   runDays?: string[];

@@ -42,6 +42,40 @@ const DISTANCE_OPTIONS = [
 
 const DEFAULT_RUN_DAYS = ["Seg", "Ter", "Qui", "Sex", "Sáb"];
 
+function formatDuration(hours: string, minutes: string): string {
+  const h = Number(hours) || 0;
+  const m = Number(minutes) || 0;
+  if (!h) return `${m}min`;
+  return m ? `${h}h ${m}min` : `${h}h`;
+}
+
+function formatRaceTime(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatPace(secondsPerKm: number | undefined): string {
+  if (!secondsPerKm || !Number.isFinite(secondsPerKm) || secondsPerKm <= 0) {
+    return "-";
+  }
+  const total = Math.round(secondsPerKm);
+  const min = Math.floor(total / 60);
+  const sec = total % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function normalizeClockField(value: string, max: number): string {
+  if (value === "") return value;
+  const n = Math.min(max, Math.max(0, Math.floor(Number(value) || 0)));
+  return String(n);
+}
+
 function StepIndicator({ step }: { step: number }) {
   return (
     <div className="flex items-center gap-2 mb-6">
@@ -85,7 +119,20 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
     return known ? "" : String(goal.targetDistance / 1000);
   });
   const [targetDate, setTargetDate] = useState(() => (goal ? goal.targetDate.slice(0, 10) : ""));
+  const [cycleStart, setCycleStart] = useState(() =>
+    goal?.startDate ? goal.startDate.slice(0, 10) : ""
+  );
   const [discipline, setDiscipline] = useState(goal?.discipline ?? "");
+
+  const [targetHours, setTargetHours] = useState(() =>
+    goal?.targetTime ? String(Math.floor(goal.targetTime / 3600)) : ""
+  );
+  const [targetMin, setTargetMin] = useState(() =>
+    goal?.targetTime ? String(Math.floor((goal.targetTime % 3600) / 60)) : ""
+  );
+  const [targetSec, setTargetSec] = useState(() =>
+    goal?.targetTime ? String(goal.targetTime % 60) : ""
+  );
 
   const [runDays, setRunDays] = useState<string[]>(
     goal?.runDays?.length ? goal.runDays : DEFAULT_RUN_DAYS
@@ -96,19 +143,34 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
     goal ? String(Math.floor(goal.threeKmTime / 60)) : ""
   );
   const [threeKmSeg, setThreeKmSeg] = useState(() =>
-    goal ? String(goal.threeKmTime % 60) : ""
+    goal ? String(goal.threeKmTime % 60).padStart(2, "0") : "00"
   );
   const [longestKm, setLongestKm] = useState(() =>
     goal?.longestRunDistance ? String(goal.longestRunDistance / 1000) : ""
   );
+  const [longestHours, setLongestHours] = useState(() =>
+    goal?.longestRunTime ? String(Math.floor(goal.longestRunTime / 3600)) : ""
+  );
   const [longestMin, setLongestMin] = useState(() =>
-    goal?.longestRunTime ? String(Math.floor(goal.longestRunTime / 60)) : ""
+    goal?.longestRunTime ? String(Math.floor((goal.longestRunTime % 3600) / 60)) : ""
   );
 
   const targetDistance = distanceOption === 0 ? Number(customDistance) * 1000 : (distanceOption || 0);
-  const threeKmTime = Number(threeKmMin) * 60 + Number(threeKmSeg);
+  const threeKmMinValid = Number(threeKmMin) > 0;
+  const threeKmTime = Number(threeKmMin) * 60 + (Number(threeKmSeg) || 0);
   const longestRunDistance = longestKm ? Number(longestKm) * 1000 : undefined;
-  const longestRunTime = longestMin ? Number(longestMin) * 60 : undefined;
+  const longestRunTime =
+    longestHours || longestMin
+      ? (Number(longestHours) || 0) * 3600 + (Number(longestMin) || 0) * 60
+      : undefined;
+  const targetTime =
+    targetHours || targetMin || targetSec
+      ? (Number(targetHours) || 0) * 3600 +
+        (Number(targetMin) || 0) * 60 +
+        (Number(targetSec) || 0)
+      : undefined;
+  const targetTimePace =
+    targetTime && targetDistance ? targetTime / (targetDistance / 1000) : undefined;
 
   const toggleDay = (short: string) => {
     setRunDays((prev) =>
@@ -117,15 +179,19 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
   };
 
   const handleSubmit = async () => {
-    if (!title || !targetDistance || !targetDate || !threeKmMin || !threeKmSeg) return;
+    if (!title || !targetDistance || !targetDate || !threeKmMinValid) return;
     setLoading(true);
 
     const data = {
       title,
       targetDistance,
-      targetDate: new Date(targetDate).toISOString(),
+      targetDate: new Date(`${targetDate}T12:00:00`).toISOString(),
+      startDate: cycleStart
+        ? new Date(`${cycleStart}T12:00:00`).toISOString()
+        : null,
       discipline: discipline || title,
       threeKmTime,
+      targetTime: targetTime ?? null,
       longestRunDistance,
       longestRunTime,
       runDays,
@@ -161,6 +227,8 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 14);
   const minDateStr = minDate.toISOString().split("T")[0];
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   return (
     <div>
@@ -222,6 +290,87 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
               onChange={(e) => setTargetDate(e.target.value)}
               className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-on-surface mb-1.5">
+              Início do ciclo (opcional)
+            </label>
+            <p className="text-xs text-on-surface-variant mb-3">
+              Quando você quer começar o plano? Deixe vazio para começar já. O plano
+              começa na semana da data escolhida e analisa os treinos que você já fez
+              para vinculá-los automaticamente.
+            </p>
+            <input
+              type="date"
+              min={todayStr}
+              max={targetDate || undefined}
+              value={cycleStart}
+              onChange={(e) => setCycleStart(e.target.value)}
+              className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-on-surface mb-1.5">
+              Tempo alvo na prova (opcional)
+            </label>
+            <p className="text-xs text-on-surface-variant mb-3">
+              Informe o tempo que você quer fazer. O coach valida contra seu teste dos 3km
+              e seu histórico antes de montar o plano.
+            </p>
+            <div className="flex gap-3 items-center">
+              <div className="flex-1">
+                <label className="block text-xs text-on-surface-variant mb-1">Horas</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="24"
+                  placeholder="1"
+                  value={targetHours}
+                  onChange={(e) => setTargetHours(e.target.value)}
+                  onBlur={() => setTargetHours((v) => normalizeClockField(v, 24))}
+                  className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <span className="text-lg font-medium text-on-surface mt-6">:</span>
+              <div className="flex-1">
+                <label className="block text-xs text-on-surface-variant mb-1">Minutos</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  placeholder="45"
+                  value={targetMin}
+                  onChange={(e) => setTargetMin(e.target.value)}
+                  onBlur={() => setTargetMin((v) => normalizeClockField(v, 59))}
+                  className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <span className="text-lg font-medium text-on-surface mt-6">:</span>
+              <div className="flex-1">
+                <label className="block text-xs text-on-surface-variant mb-1">Segundos</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  placeholder="00"
+                  value={targetSec}
+                  onChange={(e) => setTargetSec(e.target.value)}
+                  onBlur={() =>
+                    setTargetSec((v) =>
+                      v === "" ? v : normalizeClockField(v, 59).padStart(2, "0")
+                    )
+                  }
+                  className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+            {targetTimePace && (
+              <p className="mt-2 text-xs text-on-surface-variant">
+                Pace alvo: <span className="font-medium text-on-surface">{formatPace(targetTimePace)}/km</span>
+              </p>
+            )}
           </div>
 
           <div>
@@ -341,6 +490,13 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
                   placeholder="00"
                   value={threeKmSeg}
                   onChange={(e) => setThreeKmSeg(e.target.value)}
+                  onBlur={() =>
+                    setThreeKmSeg((v) => {
+                      if (v === "") return "00";
+                      const n = Math.min(59, Math.max(0, Math.floor(Number(v) || 0)));
+                      return String(n).padStart(2, "0");
+                    })
+                  }
                   className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -366,13 +522,33 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-xs text-on-surface-variant mb-1">Tempo (minutos)</label>
+                <label className="block text-xs text-on-surface-variant mb-1">Horas (h)</label>
                 <input
                   type="number"
-                  min="5"
-                  placeholder="Ex: 90"
+                  min="0"
+                  max="24"
+                  placeholder="1"
+                  value={longestHours}
+                  onChange={(e) => setLongestHours(e.target.value)}
+                  className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs text-on-surface-variant mb-1">Minutos (min)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  placeholder="35"
                   value={longestMin}
                   onChange={(e) => setLongestMin(e.target.value)}
+                  onBlur={() =>
+                    setLongestMin((v) => {
+                      if (v === "") return v;
+                      const n = Math.min(59, Math.max(0, Math.floor(Number(v) || 0)));
+                      return String(n);
+                    })
+                  }
                   className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -384,11 +560,28 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
             <ul className="text-sm text-on-surface-variant space-y-1">
               <li>Meta: {title || "(sem título)"}</li>
               <li>Distância: {targetDistance / 1000}km</li>
+              {targetTime && (
+                <li>
+                  Tempo alvo: {formatRaceTime(targetTime)}
+                  {targetTimePace ? ` (${formatPace(targetTimePace)}/km)` : ""}
+                </li>
+              )}
               <li>Data: {targetDate ? new Date(targetDate).toLocaleDateString("pt-BR") : "-"}</li>
+              <li>
+                Início do ciclo:{" "}
+                {cycleStart
+                  ? new Date(`${cycleStart}T12:00:00`).toLocaleDateString("pt-BR")
+                  : "imediato"}
+              </li>
               <li>Dias de treino: {runDays.length}x por semana</li>
               <li>Longão: {ALL_DAYS.find((d) => d.short === longRunDay)?.full}</li>
-              <li>Teste 3km: {threeKmMin || "?"}min {threeKmSeg || "00"}seg</li>
-              {longestKm && <li>Maior distância: {longestKm}km{longestMin ? ` em ${longestMin}min` : ""}</li>}
+              <li>Teste 3km: {threeKmMin || "?"}min {threeKmSeg.padStart(2, "0")}seg</li>
+              {longestKm && (
+                <li>
+                  Maior distância: {longestKm}km
+                  {longestRunTime ? ` em ${formatDuration(longestHours, longestMin)}` : ""}
+                </li>
+              )}
               <li>Plano de treino será gerado automaticamente</li>
             </ul>
           </div>
@@ -401,7 +594,7 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
               variant="primary"
               onClick={handleSubmit}
               loading={loading}
-              disabled={!threeKmMin || !threeKmSeg}
+              disabled={!threeKmMinValid}
             >
               {loading ? "Salvando..." : goal ? "Salvar Alterações" : "Salvar Meta e Gerar Plano"}
             </Button>
@@ -495,7 +688,7 @@ function GoalDisplay({
                 <circle cx="100" cy="100" r="80" fill="none" stroke="#e0e3e5" strokeWidth="12" />
                 <circle
                   cx="100" cy="100" r="80"
-                  fill="none" stroke="#aa3000" strokeWidth="12"
+                  fill="none" stroke="#bb3619" strokeWidth="12"
                   strokeDasharray={circumference}
                   strokeDashoffset={offset}
                   strokeLinecap="round"
@@ -533,9 +726,28 @@ function GoalDisplay({
               </span>
             </div>
             <div className="flex justify-between">
+              <span className="text-sm text-on-surface-variant">Início do ciclo</span>
+              <span className="text-sm font-medium text-on-surface">
+                {goal.startDate
+                  ? new Date(goal.startDate).toLocaleDateString("pt-BR")
+                  : "Imediato"}
+              </span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-sm text-on-surface-variant">Distância total</span>
               <span className="text-sm font-medium text-on-surface">{(goal.targetDistance / 1000).toFixed(0)}km</span>
             </div>
+            {goal.targetTime && (
+              <div className="flex justify-between">
+                <span className="text-sm text-on-surface-variant">Tempo alvo</span>
+                <span className="text-sm font-medium text-on-surface">
+                  {formatRaceTime(goal.targetTime)}
+                  {goal.targetDistance > 0
+                    ? ` (${formatPace(goal.targetTime / (goal.targetDistance / 1000))}/km)`
+                    : ""}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-sm text-on-surface-variant">Dias por semana</span>
               <span className="text-sm font-medium text-on-surface">{goal.daysPerWeek}x</span>

@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Veltra - AI Running Coach",
   description: "Seu coach de corrida com inteligência artificial",
-  icons: { icon: "/images/favicon.svg" },
+  icons: { icon: "/images/veltra-icon-app.svg" },
 };
 
 export default function RootLayout({
