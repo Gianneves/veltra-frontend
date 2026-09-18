@@ -20,11 +20,26 @@ export function formatTime(seconds: number): string {
   return h > 0 ? `${h}h${m}min` : `${m}min`;
 }
 
+export function formatNumber(value: number, maximumFractionDigits = 0): string {
+  if (!Number.isFinite(value)) return "0";
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits }).format(value);
+}
+
 export function formatElevation(meters: number): string {
   if (!meters || !Number.isFinite(meters) || meters <= 0) return "0";
-  return new Intl.NumberFormat("pt-BR", {
-    maximumFractionDigits: 0,
-  }).format(meters);
+  return formatNumber(meters);
+}
+
+export function formatRaceTime(seconds: number): string {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return "-";
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const mm = h > 0 ? m.toString().padStart(2, "0") : m.toString();
+  return h > 0
+    ? `${h}:${mm}:${s.toString().padStart(2, "0")}`
+    : `${mm}:${s.toString().padStart(2, "0")}`;
 }
 
 export function formatDuration(seconds: number): string {

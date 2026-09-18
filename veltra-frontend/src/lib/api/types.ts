@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   stravaId: number;
 }
 
@@ -114,14 +115,53 @@ export interface Milestone {
   achieved: boolean;
 }
 
+export type AchievementCategory =
+  | "milestone"
+  | "distance"
+  | "consistency"
+  | "speed";
+
+export type AchievementProgressUnit = "km" | "weeks" | "seconds" | "runs";
+
+export interface AchievementProgress {
+  current: number;
+  target: number;
+  unit: AchievementProgressUnit;
+  higherIsBetter: boolean;
+}
+
 export interface Achievement {
   id: string;
   name: string;
   description: string;
   icon: string;
-  category: string;
+  category: AchievementCategory;
   earned: boolean;
-  earnedDate?: string;
+  earnedDate?: string | null;
+  progress?: AchievementProgress | null;
+}
+
+export interface BestEffort {
+  distanceKm: number;
+  timeSeconds: number;
+  paceSecondsPerKm: number;
+  activityId: string;
+  activityName: string;
+  achievedAt?: string | null;
+}
+
+export interface TimePrediction {
+  distanceKm: number;
+  timeSeconds: number;
+  paceSecondsPerKm: number;
+  basedOnDistanceKm: number;
+  basedOnTimeSeconds: number;
+}
+
+export interface AchievementsResponse {
+  trophies: Achievement[];
+  bestEfforts: BestEffort[];
+  predictions: TimePrediction[];
 }
 
 export interface CoachInsight {

@@ -63,11 +63,19 @@ export function Sidebar() {
 
       <div className="border-t border-surface-container-high px-4 py-4">
         <div className="flex items-center gap-3 px-2">
-          <img
-            src="/images/veltra-icon-light-bg.svg"
-            alt="Avatar"
-            className="h-8 w-8 rounded-full bg-surface-container-highest p-1"
-          />
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="h-8 w-8 rounded-full bg-surface-container-highest object-cover"
+            />
+          ) : (
+            <img
+              src="/images/veltra-icon-light-bg.svg"
+              alt="Avatar"
+              className="h-8 w-8 rounded-full bg-surface-container-highest p-1"
+            />
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-on-surface truncate">{user?.name}</p>
           </div>

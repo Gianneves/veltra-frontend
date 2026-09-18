@@ -3,7 +3,6 @@ import type {
   Activity,
   TrainingPlan,
   Goal,
-  Achievement,
   CoachInsight,
   ChatMessage,
   StreakData,
@@ -113,14 +112,6 @@ export const mockGoals: Goal[] = [
       { id: "m-003", description: "Longão de 32km", target: 32_000, achieved: false },
     ],
   },
-];
-
-export const mockAchievements: Achievement[] = [
-  { id: "ach-001", name: "Primeiro Passo", description: "Completou seu primeiro treino", icon: "footprints", category: "Milestone", earned: true, earnedDate: "2026-01-15" },
-  { id: "ach-002", name: "Centenário", description: "Acumulou 100km de corrida", icon: "trophy", category: "Distance", earned: true, earnedDate: "2026-03-20" },
-  { id: "ach-003", name: "Maratonista", description: "Completou uma maratona", icon: "medal", category: "Distance", earned: false },
-  { id: "ach-004", name: "Consistente", description: "Manteve streak de 30 dias", icon: "flame", category: "Consistency", earned: true, earnedDate: "2026-05-01" },
-  { id: "ach-005", name: "Velocista", description: "Correu 5km abaixo de 20min", icon: "zap", category: "Speed", earned: false },
 ];
 
 export const mockInsights: CoachInsight[] = [
