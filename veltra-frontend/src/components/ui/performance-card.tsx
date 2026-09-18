@@ -3,11 +3,19 @@ import { cn } from "@/lib/utils";
 
 interface PerformanceCardProps {
   label: string;
+  icon?: ReactNode;
+  action?: ReactNode;
   children: ReactNode;
   className?: string;
 }
 
-export function PerformanceCard({ label, children, className }: PerformanceCardProps) {
+export function PerformanceCard({
+  label,
+  icon,
+  action,
+  children,
+  className,
+}: PerformanceCardProps) {
   return (
     <div
       className={cn(
@@ -15,9 +23,13 @@ export function PerformanceCard({ label, children, className }: PerformanceCardP
         className
       )}
     >
-      <p className="font-geist text-label-sm tracking-[0.05em] text-on-surface-variant mb-3">
-        {label.toUpperCase()}
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="flex items-center gap-1.5 font-geist text-label-sm tracking-[0.05em] text-on-surface-variant">
+          {icon}
+          {label.toUpperCase()}
+        </p>
+        {action}
+      </div>
       {children}
     </div>
   );

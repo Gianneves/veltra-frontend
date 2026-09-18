@@ -32,6 +32,7 @@ export type TrainingSessionType =
 export interface TrainingSession {
   id: string;
   day: string;
+  dayOrder?: number;
   type: TrainingSessionType;
   plannedDistance: number;
   plannedPace: number;
