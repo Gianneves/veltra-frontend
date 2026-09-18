@@ -7,28 +7,38 @@ import {
   ArrowLeft,
   Heart,
   Mountain,
+  RefreshCw,
+  Sparkles,
   Timer,
   TrendingUp,
 } from "lucide-react";
 import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
+import { InsightSections } from "@/components/ui/insight-sections";
 import { StatItem } from "@/components/ui/stat-item";
 import { Button } from "@/components/ui/button";
 import { getActivity } from "@/lib/api/activities";
+import {
+  generateActivityInsight,
+  getActivityInsight,
+} from "@/lib/api/insights";
 import {
   formatDuration,
   formatLongDate,
   formatPace,
   formatPaceFromMps,
 } from "@/lib/format";
-import type { Activity } from "@/lib/api/types";
+import type { Activity, ActivityInsight } from "@/lib/api/types";
 
 export default function ActivityDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [activity, setActivity] = useState<Activity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [insight, setInsight] = useState<ActivityInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(true);
+  const [insightReload, setInsightReload] = useState(0);
 
   useEffect(() => {
     if (typeof params.id !== "string") return;
@@ -48,6 +58,39 @@ export default function ActivityDetailPage() {
       active = false;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    if (typeof params.id !== "string") return;
+
+    const activityId = params.id;
+    let active = true;
+    setInsightLoading(true);
+
+    async function loadInsight() {
+      try {
+        const existing = await getActivityInsight(activityId);
+        if (!active) return;
+
+        if (existing?.status === "completed") {
+          setInsight(existing);
+          return;
+        }
+
+        const generated = await generateActivityInsight(activityId);
+        if (active) setInsight(generated);
+      } catch {
+        if (active) setInsight(null);
+      } finally {
+        if (active) setInsightLoading(false);
+      }
+    }
+
+    void loadInsight();
+
+    return () => {
+      active = false;
+    };
+  }, [params.id, insightReload]);
 
   if (loading) {
     return (
@@ -165,6 +208,60 @@ export default function ActivityDetailPage() {
             icon={<Mountain size={14} className="text-primary" />}
           />
         </div>
+      </PerformanceCard>
+
+      <PerformanceCard
+        label="Insight do Coach"
+        icon={<Sparkles size={14} className="text-primary" />}
+        className="mt-6"
+      >
+        {insightLoading ? (
+          <div className="flex items-center gap-4 py-2">
+            <img
+              src="/images/avatar-coach.svg"
+              alt="Coach"
+              className="h-10 w-10 shrink-0 rounded-full"
+            />
+            <div className="flex-1">
+              <p className="font-geist text-sm text-on-surface">
+                Analisando sua corrida...
+              </p>
+              <p className="font-geist text-xs text-on-surface-variant">
+                O coach está revisando pace, distância e plano de treino.
+              </p>
+            </div>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : insight?.content ? (
+          <div className="flex gap-4">
+            <img
+              src="/images/avatar-coach.svg"
+              alt="Coach"
+              className="h-10 w-10 shrink-0 rounded-full"
+            />
+            <div className="min-w-0 flex-1">
+              <InsightSections content={insight.content} />
+              {insight.updatedAt && (
+                <p className="mt-3 text-xs text-on-surface-variant">
+                  {new Date(insight.updatedAt).toLocaleDateString("pt-BR", {
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="font-geist text-sm text-on-surface-variant">
+              Não foi possível gerar a análise desta corrida.
+            </p>
+            <Button size="sm" onClick={() => setInsightReload((k) => k + 1)}>
+              <RefreshCw size={14} />
+              Tentar novamente
+            </Button>
+          </div>
+        )}
       </PerformanceCard>
 
       <PerformanceCard label="Mapa" className="mt-6">

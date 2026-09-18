@@ -3,7 +3,6 @@ import type {
   Activity,
   TrainingPlan,
   Goal,
-  CoachInsight,
   ChatMessage,
   StreakData,
 } from "./types";
@@ -114,47 +113,4 @@ export const mockGoals: Goal[] = [
   },
 ];
 
-export const mockInsights: CoachInsight[] = [
-  {
-    id: "ins-001",
-    title: "Evolução no ritmo",
-    content: "Seu ritmo médio melhorou 8% nas últimas 4 semanas. Continue com os treinos intervalados que você tem se destacado.",
-    topic: "performance",
-    createdAt: "2026-06-29T08:00:00Z",
-  },
-  {
-    id: "ins-002",
-    title: "Sinais de fadiga",
-    content: "Sua variabilidade de frequência cardíaca (HRV) está 12% abaixo da sua média. Considere um dia extra de descanso esta semana.",
-    topic: "recovery",
-    createdAt: "2026-06-28T08:00:00Z",
-  },
-  {
-    id: "ins-003",
-    title: "Impacto do treino de força",
-    content: "Corredores que incorporam 2 sessões de força por semana têm 30% menos lesões. Que tal adicionar um treino de core amanhã?",
-    topic: "form",
-    createdAt: "2026-06-27T08:00:00Z",
-  },
-];
 
-export const mockChatMessages: ChatMessage[] = [
-  {
-    id: "msg-001",
-    role: "coach",
-    content: "Olá, Rafael! Como foi seu treino de hoje? Estou aqui para ajudar com qualquer dúvida.",
-    timestamp: "2026-06-29T10:00:00Z",
-  },
-  {
-    id: "msg-002",
-    role: "user",
-    content: "Foi bom! Completei 10km, mas senti cansaço no último km. Devo aumentar a quilometragem ou focar em ritmo?",
-    timestamp: "2026-06-29T10:01:00Z",
-  },
-  {
-    id: "msg-003",
-    role: "coach",
-    content: "Ótimo trabalho! Pelo que você descreve, seu corpo está se adaptando bem. Sugiro manter a quilometragem por mais uma semana e focar em consistência de ritmo. Na próxima semana a gente incrementa.",
-    timestamp: "2026-06-29T10:02:00Z",
-  },
-];

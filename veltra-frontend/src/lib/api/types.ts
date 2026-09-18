@@ -164,12 +164,32 @@ export interface AchievementsResponse {
   predictions: TimePrediction[];
 }
 
-export interface CoachInsight {
+export type AdherenceVerdict = "no_plano" | "proximo" | "diferente";
+
+export interface ActivityInsightContent {
+  summary: string;
+  performance: string;
+  workoutType: string;
+  plan: string | null;
+  tips: string[];
+}
+
+export interface ActivityInsight {
   id: string;
-  title: string;
-  content: string;
-  topic: string;
-  createdAt: string;
+  activityId: string;
+  status: "pending" | "completed" | "failed";
+  content: ActivityInsightContent | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface InsightFeedItem extends ActivityInsight {
+  activityName: string;
+  activityDate: string | null;
+  activityType: string | null;
+  distanceKm: number;
+  paceSecondsPerKm: number;
+  verdict: AdherenceVerdict | null;
 }
 
 export interface ChatMessage {
@@ -177,6 +197,33 @@ export interface ChatMessage {
   role: "user" | "coach";
   content: string;
   timestamp: string;
+}
+
+export interface CoachConversation {
+  id: string;
+  title: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface CoachProposal {
+  session: number;
+  sessionId: string;
+  planId: string;
+  before: {
+    day: string;
+    type: string;
+    plannedDistance: number;
+    plannedPace: number;
+  };
+  changes: {
+    type?: TrainingSessionType;
+    plannedDistance?: number;
+    plannedPace?: number;
+    day?: string;
+    notes?: string;
+  };
+  reason: string;
 }
 
 export interface StreakData {

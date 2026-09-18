@@ -74,7 +74,12 @@ export async function linkSessionActivity(
 export async function updateSession(
   planId: string,
   sessionId: string,
-  data: Partial<Pick<TrainingSession, "plannedDistance" | "plannedPace" | "type" | "notes">>
+  data: Partial<
+    Pick<
+      TrainingSession,
+      "plannedDistance" | "plannedPace" | "type" | "day" | "notes"
+    >
+  >
 ): Promise<TrainingSession | null> {
   try {
     return await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);
