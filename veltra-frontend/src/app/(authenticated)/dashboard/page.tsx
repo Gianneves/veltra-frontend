@@ -15,9 +15,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
+import { StatItem } from "@/components/ui/stat-item";
 import { getActivities } from "@/lib/api/activities";
 import { getPlanByWeek, getTrainingPlan } from "@/lib/api/training";
 import { getWeeklyStats } from "@/lib/api/analytics";
+import {
+  formatActivityDate,
+  formatPace,
+  formatPaceFromMps,
+  formatTime,
+} from "@/lib/format";
 import {
   DAY_ORDER,
   typeColors,
@@ -33,35 +40,6 @@ import type {
 } from "@/lib/api/types";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-function formatPace(secondsPerKm: number): string {
-  if (!secondsPerKm) return "-";
-  const min = Math.floor(secondsPerKm / 60);
-  const sec = Math.round(secondsPerKm % 60);
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
-
-function formatPaceFromMps(mps: number): string {
-  if (!mps) return "-";
-  return formatPace(1000 / mps);
-}
-
-function formatTime(seconds: number): string {
-  if (!seconds) return "0min";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h${m}min` : `${m}min`;
-}
-
-function formatActivityDate(value: string): string {
-  if (!value) return "-";
-  const formatted = new Date(value).toLocaleDateString("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-}
 
 function sessionDayOrder(session: TrainingSession): number {
   return session.dayOrder ?? DAY_ORDER[session.day] ?? 0;
@@ -82,19 +60,6 @@ function relativeDayLabel(
   if (order === todayOrder) return "Hoje";
   if (order === (todayOrder + 1) % 7) return "Amanhã";
   return session.day;
-}
-
-function RunMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col items-end">
-      <span className="font-geist text-sm font-semibold leading-none text-on-surface">
-        {value}
-      </span>
-      <span className="mt-0.5 font-geist text-[10px] uppercase tracking-[0.05em] text-on-surface-variant">
-        {label}
-      </span>
-    </div>
-  );
 }
 
 export default function DashboardPage() {
@@ -363,15 +328,18 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-5">
-                  <RunMetric
+                  <StatItem
+                    align="right"
                     label="distância"
                     value={`${(activity.distance / 1000).toFixed(1)}km`}
                   />
-                  <RunMetric
+                  <StatItem
+                    align="right"
                     label="ritmo"
                     value={`${formatPaceFromMps(activity.averageSpeed)}/km`}
                   />
-                  <RunMetric
+                  <StatItem
+                    align="right"
                     label="tempo"
                     value={formatTime(activity.movingTime)}
                   />
