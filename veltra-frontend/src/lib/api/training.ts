@@ -2,7 +2,7 @@
 
 import { api } from "./client";
 import { mockTrainingPlan } from "./mock";
-import type { TrainingPlan, TrainingSession } from "./types";
+import type { TrainingPattern, TrainingPlan, TrainingSession } from "./types";
 
 const USE_MOCK = false;
 
@@ -27,6 +27,14 @@ export async function getAllPlans(): Promise<TrainingPlan[]> {
 export async function getPlanByWeek(weekStart: string): Promise<TrainingPlan | null> {
   try {
     return await api.get<TrainingPlan>(`/training-plans/by-week?weekStart=${weekStart}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function getTrainingPattern(): Promise<TrainingPattern | null> {
+  try {
+    return await api.get<TrainingPattern>("/training-plans/pattern");
   } catch {
     return null;
   }

@@ -63,6 +63,32 @@ export interface WeeklyStats {
   weekStart: string;
 }
 
+export interface TypicalQuality {
+  count: number;
+  km: number;
+  pace: number;
+  repPace?: number;
+  reps: string[];
+}
+
+export interface TrainingPattern {
+  hasData: boolean;
+  confidence: "low" | "medium" | "high";
+  sampleSize: number;
+  weeksAnalyzed: number;
+  runsPerWeek: number;
+  qualityPerWeek: number;
+  weekdayRate: Record<string, number>;
+  preferredRunDays: string[];
+  preferredLongRunDay?: string | null;
+  qualityDayRate: Record<string, number>;
+  preferredQualityDays: string[];
+  typeMix: Record<string, number>;
+  typicalQuality: Partial<Record<"interval" | "tempo" | "fartlek", TypicalQuality>>;
+  easyPace?: number | null;
+  longRun?: { km: number; pace: number } | null;
+}
+
 export interface Goal {
   id: string;
   title: string;

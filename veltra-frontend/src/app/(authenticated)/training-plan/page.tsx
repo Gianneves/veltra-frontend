@@ -16,7 +16,7 @@ import {
 import type { Activity, TrainingPlan, TrainingSession } from "@/lib/api/types";
 import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  CheckCircle2, Circle, Pencil, Check, X, RefreshCw, History, Link2, Unlink,
+  CheckCircle2, Circle, Pencil, Check, X, RefreshCw, History, Link2, Unlink, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -575,6 +575,11 @@ export default function TrainingPlanPage() {
                 <div className="px-5 pb-5">
                   {plan.coachNotes && (
                     <div className="mb-4 rounded-xl border border-surface-container-highest bg-surface-container-highest/60 p-4">
+                      {plan.coachNotes.includes("Seu histórico mostra") && (
+                        <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                          <Sparkles size={12} /> Baseado no seu histórico
+                        </span>
+                      )}
                       <p className="mb-1 text-xs font-semibold text-on-surface">
                         Análise do Coach
                       </p>

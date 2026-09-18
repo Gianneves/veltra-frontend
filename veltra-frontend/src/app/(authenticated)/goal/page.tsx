@@ -7,9 +7,10 @@ import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
 import { Button } from "@/components/ui/button";
 import { getGoals, createGoal, updateGoal, deleteGoal } from "@/lib/api/goals";
-import { CheckCircle2, Circle, ChevronRight, ChevronLeft, Pencil, Trash2 } from "lucide-react";
+import { getTrainingPattern } from "@/lib/api/training";
+import { CheckCircle2, Circle, ChevronRight, ChevronLeft, Pencil, Trash2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Goal } from "@/lib/api/types";
+import type { Goal, TrainingPattern } from "@/lib/api/types";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -138,6 +139,27 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
     goal?.runDays?.length ? goal.runDays : DEFAULT_RUN_DAYS
   );
   const [longRunDay, setLongRunDay] = useState(goal?.longRunDay ?? "Sáb");
+  const [pattern, setPattern] = useState<TrainingPattern | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getTrainingPattern().then((data) => {
+      if (active) setPattern(data);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const applyPattern = () => {
+    if (!pattern?.preferredRunDays?.length) return;
+    setRunDays(pattern.preferredRunDays);
+    const suggestedLong =
+      pattern.preferredLongRunDay && pattern.preferredRunDays.includes(pattern.preferredLongRunDay)
+        ? pattern.preferredLongRunDay
+        : pattern.preferredRunDays[pattern.preferredRunDays.length - 1];
+    setLongRunDay(suggestedLong);
+  };
 
   const [threeKmMin, setThreeKmMin] = useState(() =>
     goal ? String(Math.floor(goal.threeKmTime / 60)) : ""
@@ -398,6 +420,32 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
 
       {step === 2 && (
         <div className="space-y-5">
+          {pattern?.hasData && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <Sparkles size={18} className="mt-0.5 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-on-surface">
+                      Encontramos seu padrão de treino
+                    </p>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      Você costuma correr {pattern.runsPerWeek}x por semana
+                      {pattern.preferredQualityDays.length > 0 &&
+                        `, com qualidade em ${pattern.preferredQualityDays.join(" e ")}`}
+                      {pattern.preferredLongRunDay &&
+                        ` e longão no ${pattern.preferredLongRunDay}`}
+                      . Seus próximos treinos podem seguir essa rotina.
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" onClick={applyPattern}>
+                  Usar meus dias
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-on-surface mb-1.5">Quais dias você corre?</label>
             <div className="flex flex-wrap gap-2">
