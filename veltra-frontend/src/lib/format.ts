@@ -20,6 +20,13 @@ export function formatTime(seconds: number): string {
   return h > 0 ? `${h}h${m}min` : `${m}min`;
 }
 
+export function formatElevation(meters: number): string {
+  if (!meters || !Number.isFinite(meters) || meters <= 0) return "0";
+  return new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 0,
+  }).format(meters);
+}
+
 export function formatDuration(seconds: number): string {
   if (!seconds) return "0s";
   const h = Math.floor(seconds / 3600);
