@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   stravaId: number;
 }
 
@@ -32,6 +33,7 @@ export type TrainingSessionType =
 export interface TrainingSession {
   id: string;
   day: string;
+  dayOrder?: number;
   type: TrainingSessionType;
   plannedDistance: number;
   plannedPace: number;
@@ -62,6 +64,32 @@ export interface WeeklyStats {
   weekStart: string;
 }
 
+export interface TypicalQuality {
+  count: number;
+  km: number;
+  pace: number;
+  repPace?: number;
+  reps: string[];
+}
+
+export interface TrainingPattern {
+  hasData: boolean;
+  confidence: "low" | "medium" | "high";
+  sampleSize: number;
+  weeksAnalyzed: number;
+  runsPerWeek: number;
+  qualityPerWeek: number;
+  weekdayRate: Record<string, number>;
+  preferredRunDays: string[];
+  preferredLongRunDay?: string | null;
+  qualityDayRate: Record<string, number>;
+  preferredQualityDays: string[];
+  typeMix: Record<string, number>;
+  typicalQuality: Partial<Record<"interval" | "tempo" | "fartlek", TypicalQuality>>;
+  easyPace?: number | null;
+  longRun?: { km: number; pace: number } | null;
+}
+
 export interface Goal {
   id: string;
   title: string;
@@ -87,22 +115,81 @@ export interface Milestone {
   achieved: boolean;
 }
 
+export type AchievementCategory =
+  | "milestone"
+  | "distance"
+  | "consistency"
+  | "speed";
+
+export type AchievementProgressUnit = "km" | "weeks" | "seconds" | "runs";
+
+export interface AchievementProgress {
+  current: number;
+  target: number;
+  unit: AchievementProgressUnit;
+  higherIsBetter: boolean;
+}
+
 export interface Achievement {
   id: string;
   name: string;
   description: string;
   icon: string;
-  category: string;
+  category: AchievementCategory;
   earned: boolean;
-  earnedDate?: string;
+  earnedDate?: string | null;
+  progress?: AchievementProgress | null;
 }
 
-export interface CoachInsight {
+export interface BestEffort {
+  distanceKm: number;
+  timeSeconds: number;
+  paceSecondsPerKm: number;
+  activityId: string;
+  activityName: string;
+  achievedAt?: string | null;
+}
+
+export interface TimePrediction {
+  distanceKm: number;
+  timeSeconds: number;
+  paceSecondsPerKm: number;
+  basedOnDistanceKm: number;
+  basedOnTimeSeconds: number;
+}
+
+export interface AchievementsResponse {
+  trophies: Achievement[];
+  bestEfforts: BestEffort[];
+  predictions: TimePrediction[];
+}
+
+export type AdherenceVerdict = "no_plano" | "proximo" | "diferente";
+
+export interface ActivityInsightContent {
+  summary: string;
+  performance: string;
+  workoutType: string;
+  plan: string | null;
+  tips: string[];
+}
+
+export interface ActivityInsight {
   id: string;
-  title: string;
-  content: string;
-  topic: string;
-  createdAt: string;
+  activityId: string;
+  status: "pending" | "completed" | "failed";
+  content: ActivityInsightContent | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface InsightFeedItem extends ActivityInsight {
+  activityName: string;
+  activityDate: string | null;
+  activityType: string | null;
+  distanceKm: number;
+  paceSecondsPerKm: number;
+  verdict: AdherenceVerdict | null;
 }
 
 export interface ChatMessage {
@@ -110,6 +197,33 @@ export interface ChatMessage {
   role: "user" | "coach";
   content: string;
   timestamp: string;
+}
+
+export interface CoachConversation {
+  id: string;
+  title: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface CoachProposal {
+  session: number;
+  sessionId: string;
+  planId: string;
+  before: {
+    day: string;
+    type: string;
+    plannedDistance: number;
+    plannedPace: number;
+  };
+  changes: {
+    type?: TrainingSessionType;
+    plannedDistance?: number;
+    plannedPace?: number;
+    day?: string;
+    notes?: string;
+  };
+  reason: string;
 }
 
 export interface StreakData {

@@ -16,9 +16,15 @@ import {
 import type { Activity, TrainingPlan, TrainingSession } from "@/lib/api/types";
 import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  CheckCircle2, Circle, Pencil, Check, X, RefreshCw, History, Link2, Unlink,
+  CheckCircle2, Circle, Pencil, Check, X, RefreshCw, History, Link2, Unlink, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DAY_ORDER,
+  typeColors,
+  typeIcons,
+  typeLabels,
+} from "@/lib/training-display";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -30,39 +36,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-
-const typeColors: Record<string, string> = {
-  easy: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  interval: "bg-orange-100 text-orange-700 border-orange-200",
-  tempo: "bg-amber-100 text-amber-700 border-amber-200",
-  fartlek: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
-  long_run: "bg-blue-100 text-blue-700 border-blue-200",
-  rest: "bg-surface-container-highest text-on-surface-variant border-surface-container-highest",
-  recovery: "bg-purple-100 text-purple-700 border-purple-200",
-  race: "bg-red-100 text-red-700 border-red-200",
-};
-
-const typeLabels: Record<string, string> = {
-  easy: "Leve",
-  interval: "Intervalado",
-  tempo: "Tempo",
-  fartlek: "Fartlek",
-  long_run: "Longão",
-  rest: "Descanso",
-  recovery: "Recuperação",
-  race: "Prova",
-};
-
-const typeIcons: Record<string, string> = {
-  easy: "/images/icon-training-easy.svg",
-  interval: "/images/icon-training-interval.svg",
-  tempo: "/images/icon-training-interval.svg",
-  fartlek: "/images/icon-training-interval.svg",
-  long_run: "/images/icon-training-long.svg",
-  rest: "/images/icon-training-rest.svg",
-  recovery: "/images/icon-training-recovery.svg",
-  race: "/images/icon-training-long.svg",
-};
 
 function formatPace(secondsPerKm: number): string {
   if (!secondsPerKm || !Number.isFinite(secondsPerKm) || secondsPerKm <= 0) {
@@ -338,16 +311,6 @@ function SessionCard({
 
 const WEEKS_PER_PAGE = 5;
 
-const DAY_ORDER: Record<string, number> = {
-  Dom: 0,
-  Seg: 1,
-  Ter: 2,
-  Qua: 3,
-  Qui: 4,
-  Sex: 5,
-  Sáb: 6,
-};
-
 function dayTimestamp(date: Date): number {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
@@ -612,6 +575,11 @@ export default function TrainingPlanPage() {
                 <div className="px-5 pb-5">
                   {plan.coachNotes && (
                     <div className="mb-4 rounded-xl border border-surface-container-highest bg-surface-container-highest/60 p-4">
+                      {plan.coachNotes.includes("Seu histórico mostra") && (
+                        <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                          <Sparkles size={12} /> Baseado no seu histórico
+                        </span>
+                      )}
                       <p className="mb-1 text-xs font-semibold text-on-surface">
                         Análise do Coach
                       </p>

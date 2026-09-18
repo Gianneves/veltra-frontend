@@ -1,56 +1,152 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Activity as ActivityIcon,
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  ChevronRight,
+  Flame,
+  Heart,
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
-import { MetricChip } from "@/components/ui/metric-chip";
 import { DataDisplay } from "@/components/ui/data-display";
+import { StatItem } from "@/components/ui/stat-item";
 import { getActivities } from "@/lib/api/activities";
-import { getTrainingPlan } from "@/lib/api/training";
+import { getPlanByWeek, getTrainingPlan } from "@/lib/api/training";
 import { getWeeklyStats } from "@/lib/api/analytics";
-import { ArrowRight } from "lucide-react";
-import type { Activity, TrainingPlan, WeeklyStats } from "@/lib/api/types";
+import {
+  formatActivityDate,
+  formatPace,
+  formatPaceFromMps,
+  formatTime,
+} from "@/lib/format";
+import {
+  DAY_ORDER,
+  typeColors,
+  typeIcons,
+  typeLabels,
+} from "@/lib/training-display";
+import { cn } from "@/lib/utils";
+import type {
+  Activity,
+  TrainingPlan,
+  TrainingSession,
+  WeeklyStats,
+} from "@/lib/api/types";
 
-function formatPace(secondsPerKm: number): string {
-  if (!secondsPerKm) return "-";
-  const min = Math.floor(secondsPerKm / 60);
-  const sec = Math.round(secondsPerKm % 60);
-  return `${min}:${sec.toString().padStart(2, "0")}`;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function sessionDayOrder(session: TrainingSession): number {
+  return session.dayOrder ?? DAY_ORDER[session.day] ?? 0;
 }
 
-function formatPaceFromMps(mps: number): string {
-  if (!mps) return "-";
-  return formatPace(1000 / mps);
+function isWorkout(session: TrainingSession): boolean {
+  return session.type !== "rest";
 }
 
-function formatTime(seconds: number): string {
-  if (!seconds) return "0min";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h${m}min` : `${m}min`;
+function relativeDayLabel(
+  session: TrainingSession,
+  isNextWeek: boolean,
+  todayOrder: number,
+): string {
+  if (isNextWeek) return `Próxima ${session.day}`;
+
+  const order = sessionDayOrder(session);
+  if (order === todayOrder) return "Hoje";
+  if (order === (todayOrder + 1) % 7) return "Amanhã";
+  return session.day;
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
+  const [nextWeekPlan, setNextWeekPlan] = useState<TrainingPlan | null>(null);
   const [weekly, setWeekly] = useState<WeeklyStats | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     getActivities().then((acts) => {
+      if (!active) return;
       const sorted = [...acts].sort(
-        (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+        (a, b) =>
+          new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
       );
       setActivities(sorted);
     });
-    getTrainingPlan().then(setPlan);
-    getWeeklyStats().then(setWeekly);
+
+    getTrainingPlan().then((current) => {
+      if (!active) return;
+      setPlan(current);
+
+      if (!current?.weekStart) return;
+      const nextWeekStart = new Date(
+        new Date(current.weekStart).getTime() + WEEK_MS,
+      ).toISOString();
+
+      getPlanByWeek(nextWeekStart).then((next) => {
+        if (active) setNextWeekPlan(next);
+      });
+    });
+
+    getWeeklyStats().then((stats) => {
+      if (active) setWeekly(stats);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const lastRun = activities[0];
-  const nextSession = plan?.sessions?.find((s) => !s.completed);
-  const streak = activities.length;
+  const todayOrder = new Date().getDay();
+
+  const { nextSession, nextSessionIsNextWeek } = useMemo(() => {
+    const byDay = (sessions: TrainingSession[]) =>
+      [...sessions].sort((a, b) => sessionDayOrder(a) - sessionDayOrder(b));
+
+    const upcoming = byDay(
+      (plan?.sessions ?? []).filter(
+        (session) =>
+          isWorkout(session) &&
+          !session.completed &&
+          sessionDayOrder(session) >= todayOrder,
+      ),
+    );
+
+    if (upcoming.length > 0) {
+      return { nextSession: upcoming[0], nextSessionIsNextWeek: false };
+    }
+
+    const nextWeek = byDay(
+      (nextWeekPlan?.sessions ?? []).filter(
+        (session) => isWorkout(session) && !session.completed,
+      ),
+    );
+
+    return {
+      nextSession: nextWeek[0] ?? null,
+      nextSessionIsNextWeek: nextWeek.length > 0,
+    };
+  }, [plan, nextWeekPlan, todayOrder]);
+
+  const lastRuns = activities.slice(0, 3);
+  const totalKm =
+    activities.reduce((sum, activity) => sum + activity.distance, 0) / 1000;
+  const plannedWeekKm =
+    (plan?.sessions ?? [])
+      .filter(isWorkout)
+      .reduce((sum, session) => sum + session.plannedDistance, 0) / 1000;
+  const weekDistanceKm = (weekly?.totalDistance ?? 0) / 1000;
+  const weekProgress =
+    plannedWeekKm > 0
+      ? Math.min(100, (weekDistanceKm / plannedWeekKm) * 100)
+      : 0;
 
   return (
     <div>
@@ -59,67 +155,214 @@ export default function DashboardPage() {
         subtitle="Resumo da sua semana de treinos"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <PerformanceCard label="Streak">
-          <div className="flex items-center gap-4">
-            <img src="/images/dashboard-streak.svg" alt="Streak" className="h-10 w-10" />
-            <div>
-              <DataDisplay value={`${streak}`} unit="atividades" size="lg" />
-              <p className="text-xs text-on-surface-variant mt-1">
-                Total de corridas registradas
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <PerformanceCard
+          label="Esta Semana"
+          icon={<CalendarDays size={14} className="text-primary" />}
+        >
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <DataDisplay
+                value={weekDistanceKm.toFixed(1)}
+                unit="km"
+                size="lg"
+              />
+              <p className="font-geist text-xs text-on-surface-variant">
+                {weekly?.runCount ?? 0} corridas &bull;{" "}
+                {formatTime(weekly?.totalTime ?? 0)}
               </p>
             </div>
+
+            {plannedWeekKm > 0 ? (
+              <div className="space-y-1.5">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${weekProgress}%` }}
+                  />
+                </div>
+                <p className="font-geist text-[11px] text-on-surface-variant">
+                  {Math.round(weekProgress)}% do planejado &bull; meta de{" "}
+                  {plannedWeekKm.toFixed(0)}km
+                </p>
+              </div>
+            ) : (
+              <p className="font-geist text-[11px] text-on-surface-variant">
+                Sem plano ativo para esta semana
+              </p>
+            )}
           </div>
         </PerformanceCard>
 
-        <PerformanceCard label="Esta Semana">
+        <PerformanceCard
+          label="Total de Corridas"
+          icon={<Flame size={14} className="text-primary" />}
+        >
           <div className="space-y-2">
-            <DataDisplay value={`${weekly ? (weekly.totalDistance / 1000).toFixed(1) : "0"}`} unit="km" size="lg" />
-            <p className="text-xs text-on-surface-variant">
-              {weekly?.runCount ?? 0} corridas | {formatTime(weekly?.totalTime ?? 0)}
+            <DataDisplay
+              value={`${activities.length}`}
+              unit="corridas"
+              size="lg"
+            />
+            <p className="font-geist text-xs text-on-surface-variant">
+              {totalKm.toFixed(0)}km acumulados no histórico
             </p>
           </div>
         </PerformanceCard>
 
-        <PerformanceCard label="Próximo Treino">
+        <PerformanceCard
+          label="Próximo Treino"
+          icon={<CalendarClock size={14} className="text-primary" />}
+          className="border-primary/30 bg-gradient-to-br from-primary/5 via-surface-container-lowest to-surface-container-lowest"
+        >
           {nextSession ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-sora font-semibold text-base text-on-surface capitalize">
-                  {nextSession.type.replace("_", " ")}
-                </p>
-                <p className="text-sm text-on-surface-variant mt-1">
-                  {nextSession.day} &bull; {(nextSession.plannedDistance / 1000).toFixed(0)}km
-                  {nextSession.plannedPace > 0 && ` \u2022 ${formatPace(nextSession.plannedPace)}/km`}
-                </p>
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                      typeColors[nextSession.type],
+                    )}
+                  >
+                    <img
+                      src={typeIcons[nextSession.type]}
+                      alt=""
+                      className="h-3.5 w-3.5"
+                    />
+                    {typeLabels[nextSession.type]}
+                  </span>
+                  <p className="mt-2 font-sora text-lg font-semibold text-on-surface">
+                    {relativeDayLabel(
+                      nextSession,
+                      nextSessionIsNextWeek,
+                      todayOrder,
+                    )}
+                  </p>
+                </div>
+                <span className="shrink-0 font-geist text-[11px] text-on-surface-variant">
+                  {nextSessionIsNextWeek ? "Próxima semana" : "Esta semana"}
+                </span>
               </div>
-              <ArrowRight className="text-primary" size={20} />
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-baseline gap-4">
+                  <DataDisplay
+                    value={(nextSession.plannedDistance / 1000).toFixed(1)}
+                    unit="km"
+                    size="md"
+                  />
+                  {nextSession.plannedPace > 0 && (
+                    <span className="font-geist text-sm text-on-surface-variant">
+                      {formatPace(nextSession.plannedPace)}/km
+                    </span>
+                  )}
+                </div>
+                <Link
+                  href="/training-plan"
+                  className="inline-flex items-center gap-1 font-geist text-sm font-medium text-primary transition-colors hover:text-primary-hover"
+                >
+                  Ver plano <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              {nextSession.notes && (
+                <p className="line-clamp-2 font-geist text-xs text-on-surface-variant">
+                  {nextSession.notes}
+                </p>
+              )}
             </div>
           ) : (
-            <p className="text-sm text-on-surface-variant">Nenhum treino agendado</p>
+            <div className="space-y-3">
+              <p className="font-geist text-sm text-on-surface-variant">
+                {plan
+                  ? "Nenhum treino restante nesta semana."
+                  : "Você ainda não tem um plano ativo."}
+              </p>
+              <Link
+                href={plan ? "/training-plan" : "/goal"}
+                className="inline-flex items-center gap-1 font-geist text-sm font-medium text-primary transition-colors hover:text-primary-hover"
+              >
+                {plan ? "Ver plano" : "Definir meta"} <ArrowRight size={16} />
+              </Link>
+            </div>
           )}
         </PerformanceCard>
       </div>
 
-      {lastRun && (
-        <PerformanceCard label="Última Corrida" className="mt-6">
-          <div className="flex flex-wrap items-end gap-6">
-            <div>
-              <p className="font-sora font-semibold text-lg text-on-surface">{lastRun.name}</p>
-              <p className="text-sm text-on-surface-variant">
-                {lastRun.startDate
-                  ? new Date(lastRun.startDate).toLocaleDateString("pt-BR")
-                  : "-"}
-              </p>
-            </div>
-            <MetricChip label="Distância" value={`${(lastRun.distance / 1000).toFixed(1)}km`} />
-            <MetricChip label="Ritmo" value={formatPaceFromMps(lastRun.averageSpeed)} />
-            <MetricChip label="Duração" value={formatTime(lastRun.movingTime)} />
-            <MetricChip label="FC média" value={lastRun.averageHeartrate != null ? `${lastRun.averageHeartrate}` : "-"} />
-            <MetricChip label="Elevação" value={lastRun.totalElevationGain != null ? `${lastRun.totalElevationGain}m` : "-"} />
+      <PerformanceCard
+        label="Últimas Corridas"
+        icon={<ActivityIcon size={14} className="text-primary" />}
+        action={
+          lastRuns.length > 0 ? (
+            <Link
+              href="/activities"
+              className="font-geist text-xs font-medium text-primary transition-colors hover:text-primary-hover"
+            >
+              Ver todas
+            </Link>
+          ) : undefined
+        }
+        className="mt-6"
+      >
+        {lastRuns.length > 0 ? (
+          <div className="divide-y divide-surface-container-high">
+            {lastRuns.map((activity) => (
+              <Link
+                key={activity.id}
+                href={`/activities/${activity.id}`}
+                className="group flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1 last:pb-0"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <ActivityIcon size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-sora text-sm font-semibold text-on-surface transition-colors group-hover:text-primary">
+                      {activity.name}
+                    </p>
+                    <p className="font-geist text-xs text-on-surface-variant">
+                      {formatActivityDate(activity.startDate)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-5">
+                  <StatItem
+                    align="right"
+                    label="distância"
+                    value={`${(activity.distance / 1000).toFixed(1)}km`}
+                  />
+                  <StatItem
+                    align="right"
+                    label="ritmo"
+                    value={`${formatPaceFromMps(activity.averageSpeed)}/km`}
+                  />
+                  <StatItem
+                    align="right"
+                    label="tempo"
+                    value={formatTime(activity.movingTime)}
+                  />
+                  <span className="hidden items-center gap-1 font-geist text-sm text-on-surface-variant sm:flex">
+                    <Heart size={13} className="text-primary" />
+                    {activity.averageHeartrate != null
+                      ? activity.averageHeartrate
+                      : "-"}
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className="text-surface-container-highest transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                  />
+                </div>
+              </Link>
+            ))}
           </div>
-        </PerformanceCard>
-      )}
+        ) : (
+          <p className="font-geist text-sm text-on-surface-variant">
+            Nenhuma corrida registrada ainda.
+          </p>
+        )}
+      </PerformanceCard>
     </div>
   );
 }

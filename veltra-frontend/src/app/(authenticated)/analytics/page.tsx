@@ -5,6 +5,7 @@ import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
 import { getAllActivities } from "@/lib/api/analytics";
+import { formatElevation } from "@/lib/format";
 import type { Activity } from "@/lib/api/types";
 import {
   BarChart,
@@ -49,7 +50,10 @@ export default function AnalyticsPage() {
     getAllActivities().then(setActivities);
   }, []);
 
-  const totalElevation = activities.reduce((s, a) => s + a.totalElevationGain, 0);
+  const totalElevation = activities.reduce(
+    (sum, activity) => sum + (activity.totalElevationGain ?? 0),
+    0,
+  );
 
   return (
     <div>
@@ -129,7 +133,7 @@ export default function AnalyticsPage() {
         <PerformanceCard label="Elevação Total">
           <div className="flex flex-col items-center justify-center py-8">
             <img src="/images/illustration-analytics.svg" alt="Analytics" className="h-24 w-auto mb-4" />
-            <DataDisplay value={`${totalElevation}`} unit="m" size="lg" />
+            <DataDisplay value={formatElevation(totalElevation)} unit="m" size="lg" />
             <p className="text-sm text-on-surface-variant mt-2">Acumulado em todas as corridas</p>
           </div>
         </PerformanceCard>
