@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { Check, MessageSquarePlus, Send, X } from "lucide-react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   getConversationMessages,
   getConversations,
@@ -194,6 +195,7 @@ function ProposalCard({
 }
 
 export default function CoachChatPage() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [input, setInput] = useState("");
@@ -371,13 +373,15 @@ export default function CoachChatPage() {
               src={
                 message.role === "coach"
                   ? "/images/avatar-coach.svg"
-                  : "/images/veltra-icon-light-bg.svg"
+                  : (user?.avatarUrl ?? "/images/veltra-icon-light-bg.svg")
               }
               alt={message.role === "coach" ? "Coach" : "Você"}
               className={cn(
                 "h-8 w-8 shrink-0 rounded-full",
                 message.role === "user" &&
+                  !user?.avatarUrl &&
                   "bg-surface-container-highest p-1",
+                message.role === "user" && user?.avatarUrl && "object-cover",
               )}
             />
 
