@@ -7,6 +7,7 @@ import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
 import { Button } from "@/components/ui/button";
 import { getActivities } from "@/lib/api/activities";
+import { getHealthPolicy } from "@/lib/api/health";
 import {
   getAllPlans,
   linkSessionActivity,
@@ -16,9 +17,11 @@ import {
 import type { Activity, TrainingPlan, TrainingSession } from "@/lib/api/types";
 import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  CheckCircle2, Circle, Pencil, Check, X, RefreshCw, History, Link2, Unlink, Sparkles,
+  CheckCircle2, Circle, Pencil, Check, X, RefreshCw, History, Link2, Unlink, Sparkles, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HealthDisclaimer } from "@/components/ui/health-alerts";
+import type { HealthPolicy } from "@/lib/api/types";
 import {
   DAY_ORDER,
   typeColors,
@@ -178,6 +181,9 @@ function SessionCard({
 }) {
   const distKm = (session.plannedDistance / 1000).toFixed(1);
   const [showLink, setShowLink] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingMeters, setPendingMeters] = useState<number | null>(null);
+  const [policyWarning, setPolicyWarning] = useState("");
   const adherence = adherenceInfo(session);
   const hasActual =
     session.completed && session.actualDistance !== null && session.actualDistance !== undefined;
@@ -185,7 +191,37 @@ function SessionCard({
   const handleSaveDistance = async (val: string) => {
     const meters = Math.round(parseFloat(val) * 1000);
     if (isNaN(meters)) return;
+
+    const policy = await getHealthPolicy(meters / 1000);
+    const assessment = policy?.assessment;
+    const adjustment = policy?.planAdjustment;
+    const exceedsAgeCap =
+      adjustment?.maxLongRunKm !== undefined &&
+      meters / 1000 > adjustment.maxLongRunKm;
+
+    if (assessment && (!assessment.allowed || exceedsAgeCap)) {
+      setPendingMeters(meters);
+      setPolicyWarning(
+        assessment.message ??
+          adjustment?.reason ??
+          "Distância acima do recomendado para a sua idade.",
+      );
+      setConfirmOpen(true);
+      return;
+    }
+
     await updateSession(planId, session.id, { plannedDistance: meters });
+    onUpdated();
+  };
+
+  const handleConfirmDistance = async () => {
+    if (pendingMeters === null) return;
+    await updateSession(planId, session.id, {
+      plannedDistance: pendingMeters,
+      acknowledgeAgePolicy: true,
+    });
+    setConfirmOpen(false);
+    setPendingMeters(null);
     onUpdated();
   };
 
@@ -305,6 +341,29 @@ function SessionCard({
           <p className="text-xs text-on-surface-variant italic">{session.notes}</p>
         )}
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Distância acima do recomendado</AlertDialogTitle>
+            <AlertDialogDescription>
+              {policyWarning} Você pode ajustar mesmo assim, mas recomendamos
+              conversar com um profissional antes de assumir esse esforço.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmDistance();
+              }}
+            >
+              Ajustar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PerformanceCard>
   );
 }
@@ -327,6 +386,7 @@ export default function TrainingPlanPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [healthPolicy, setHealthPolicy] = useState<HealthPolicy | null>(null);
 
   const pastPlans = plans.filter((p) => isPastWeek(p.weekStart));
   const hasFuturePlans = plans.some((p) => !isPastWeek(p.weekStart));
@@ -362,6 +422,10 @@ export default function TrainingPlanPage() {
   useEffect(() => {
     if (page > totalPages - 1) setPage(totalPages - 1);
   }, [visiblePlans.length, page, totalPages]);
+
+  useEffect(() => {
+    getHealthPolicy().then(setHealthPolicy);
+  }, []);
 
   const handleToggleHistory = () => {
     const next = !showHistory;
@@ -525,6 +589,23 @@ export default function TrainingPlanPage() {
         </AlertDialog>
         </div>
       </div>
+
+      {healthPolicy?.planAdjustment && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4">
+          <p className="flex items-center gap-2 font-sora text-sm font-semibold text-amber-800">
+            <AlertTriangle size={16} /> Plano ajustado por segurança (idade)
+          </p>
+          <p className="mt-1 font-geist text-xs text-amber-800">
+            {healthPolicy.planAdjustment.reason}
+          </p>
+          {healthPolicy.disclaimer && (
+            <HealthDisclaimer
+              text={healthPolicy.disclaimer}
+              className="mt-2 text-amber-700"
+            />
+          )}
+        </div>
+      )}
 
       <div className="space-y-3">
         {visiblePlans

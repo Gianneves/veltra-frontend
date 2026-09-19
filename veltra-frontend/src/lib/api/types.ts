@@ -3,6 +3,75 @@ export interface User {
   name: string;
   avatarUrl?: string | null;
   stravaId: number;
+  birthDate?: string | null;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  stravaId: number;
+  birthDate: string | null;
+  healthConsent: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type HealthAlertSeverity = "info" | "attention" | "medical";
+
+export interface HealthAlert {
+  key: string;
+  severity: HealthAlertSeverity;
+  title: string;
+  message: string;
+  recommendation: string;
+  activityId?: string;
+  evidence?: Record<string, number | string>;
+}
+
+export interface HealthOverview {
+  age: number | null;
+  birthDate: string | null;
+  predictedMaxHeartRate: number | null;
+  alerts: HealthAlert[];
+  disclaimer: string;
+}
+
+export interface DistanceAgeRule {
+  label: string;
+  minKm: number;
+  maxKm: number | null;
+  minAge: number;
+  clearanceBelowAge: number;
+}
+
+export interface AgePlanAdjustment {
+  age: number;
+  maxLongRunKm?: number;
+  maxWeeklyKm?: number;
+  maxQualitySessions?: number;
+  volumeFactor?: number;
+  reason: string;
+}
+
+export interface AgeDistanceAssessment {
+  age?: number;
+  distanceKm: number;
+  allowed: boolean;
+  requiresMedicalClearance: boolean;
+  recommendedMinAge: number;
+  message?: string;
+}
+
+export interface HealthPolicy {
+  age: number | null;
+  birthDate: string | null;
+  predictedMaxHeartRate: number | null;
+  planAdjustment: AgePlanAdjustment | null;
+  distanceRules: DistanceAgeRule[];
+  assessment: AgeDistanceAssessment | null;
+  checkup: { severity: "info" | "medical"; message: string } | null;
+  disclaimer: string;
 }
 
 export interface Activity {

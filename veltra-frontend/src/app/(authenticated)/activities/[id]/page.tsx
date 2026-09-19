@@ -6,6 +6,7 @@ import {
   Activity as ActivityIcon,
   ArrowLeft,
   Heart,
+  HeartPulse,
   Mountain,
   RefreshCw,
   Sparkles,
@@ -15,10 +16,12 @@ import {
 import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
+import { HealthAlertList, HealthDisclaimer } from "@/components/ui/health-alerts";
 import { InsightSections } from "@/components/ui/insight-sections";
 import { StatItem } from "@/components/ui/stat-item";
 import { Button } from "@/components/ui/button";
 import { getActivity } from "@/lib/api/activities";
+import { getHealthOverview } from "@/lib/api/health";
 import {
   generateActivityInsight,
   getActivityInsight,
@@ -29,7 +32,7 @@ import {
   formatPace,
   formatPaceFromMps,
 } from "@/lib/format";
-import type { Activity, ActivityInsight } from "@/lib/api/types";
+import type { Activity, ActivityInsight, HealthOverview } from "@/lib/api/types";
 
 export default function ActivityDetailPage() {
   const params = useParams();
@@ -39,6 +42,17 @@ export default function ActivityDetailPage() {
   const [insight, setInsight] = useState<ActivityInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(true);
   const [insightReload, setInsightReload] = useState(0);
+  const [health, setHealth] = useState<HealthOverview | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getHealthOverview().then((overview) => {
+      if (active) setHealth(overview);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof params.id !== "string") return;
@@ -113,6 +127,10 @@ export default function ActivityDetailPage() {
       </div>
     );
   }
+
+  const activityAlerts = (health?.alerts ?? []).filter(
+    (alert) => alert.activityId === activity.id,
+  );
 
   return (
     <div>
@@ -263,6 +281,19 @@ export default function ActivityDetailPage() {
           </div>
         )}
       </PerformanceCard>
+
+      {activityAlerts.length > 0 && (
+        <PerformanceCard
+          label="Saúde & Segurança"
+          icon={<HeartPulse size={14} className="text-primary" />}
+          className="mt-6"
+        >
+          <HealthAlertList alerts={activityAlerts} />
+          {health?.disclaimer && (
+            <HealthDisclaimer text={health.disclaimer} className="mt-4" />
+          )}
+        </PerformanceCard>
+      )}
 
       <PerformanceCard label="Mapa" className="mt-6">
         <div className="flex flex-col items-center justify-center">

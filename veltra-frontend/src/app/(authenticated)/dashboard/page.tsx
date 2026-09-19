@@ -10,13 +10,17 @@ import {
   ChevronRight,
   Flame,
   Heart,
+  HeartPulse,
+  UserRound,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Header } from "@/components/header";
 import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
 import { StatItem } from "@/components/ui/stat-item";
+import { HealthAlertList, HealthDisclaimer } from "@/components/ui/health-alerts";
 import { getActivities } from "@/lib/api/activities";
+import { getHealthOverview } from "@/lib/api/health";
 import { getPlanByWeek, getTrainingPlan } from "@/lib/api/training";
 import { getWeeklyStats } from "@/lib/api/analytics";
 import {
@@ -34,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import type {
   Activity,
+  HealthOverview,
   TrainingPlan,
   TrainingSession,
   WeeklyStats,
@@ -68,6 +73,7 @@ export default function DashboardPage() {
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [nextWeekPlan, setNextWeekPlan] = useState<TrainingPlan | null>(null);
   const [weekly, setWeekly] = useState<WeeklyStats | null>(null);
+  const [health, setHealth] = useState<HealthOverview | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -97,6 +103,10 @@ export default function DashboardPage() {
 
     getWeeklyStats().then((stats) => {
       if (active) setWeekly(stats);
+    });
+
+    getHealthOverview().then((overview) => {
+      if (active) setHealth(overview);
     });
 
     return () => {
@@ -154,6 +164,29 @@ export default function DashboardPage() {
         title={`Olá, ${user?.name?.split(" ")[0] ?? "Corredor"}!`}
         subtitle="Resumo da sua semana de treinos"
       />
+
+      {health && health.age === null && (
+        <Link
+          href="/profile"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 transition-colors hover:bg-primary/10"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <UserRound size={16} />
+            </span>
+            <span>
+              <span className="block font-sora text-sm font-semibold text-on-surface">
+                Complete seu perfil
+              </span>
+              <span className="block font-geist text-xs text-on-surface-variant">
+                Informe sua data de nascimento para limites de treino e alertas de
+                saúde personalizados.
+              </span>
+            </span>
+          </span>
+          <ArrowRight size={16} className="text-primary" />
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <PerformanceCard
@@ -289,6 +322,19 @@ export default function DashboardPage() {
           )}
         </PerformanceCard>
       </div>
+
+      {health && health.alerts.length > 0 && (
+        <PerformanceCard
+          label="Saúde & Segurança"
+          icon={<HeartPulse size={14} className="text-primary" />}
+          className="mt-6"
+        >
+          <HealthAlertList alerts={health.alerts} />
+          {health.disclaimer && (
+            <HealthDisclaimer text={health.disclaimer} className="mt-4" />
+          )}
+        </PerformanceCard>
+      )}
 
       <PerformanceCard
         label="Últimas Corridas"

@@ -79,7 +79,7 @@ export async function updateSession(
       TrainingSession,
       "plannedDistance" | "plannedPace" | "type" | "day" | "notes"
     >
-  >
+  > & { acknowledgeAgePolicy?: boolean }
 ): Promise<TrainingSession | null> {
   try {
     return await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);

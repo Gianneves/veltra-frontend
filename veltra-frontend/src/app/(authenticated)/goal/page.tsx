@@ -7,10 +7,11 @@ import { PerformanceCard } from "@/components/ui/performance-card";
 import { DataDisplay } from "@/components/ui/data-display";
 import { Button } from "@/components/ui/button";
 import { getGoals, createGoal, updateGoal, deleteGoal } from "@/lib/api/goals";
+import { getHealthPolicy } from "@/lib/api/health";
 import { getTrainingPattern } from "@/lib/api/training";
-import { CheckCircle2, Circle, ChevronRight, ChevronLeft, Pencil, Trash2, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, ChevronRight, ChevronLeft, Pencil, Trash2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Goal, TrainingPattern } from "@/lib/api/types";
+import type { Goal, HealthPolicy, TrainingPattern } from "@/lib/api/types";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -140,6 +141,8 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
   );
   const [longRunDay, setLongRunDay] = useState(goal?.longRunDay ?? "Sáb");
   const [pattern, setPattern] = useState<TrainingPattern | null>(null);
+  const [agePolicy, setAgePolicy] = useState<HealthPolicy | null>(null);
+  const [ageAck, setAgeAck] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -179,6 +182,27 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
 
   const targetDistance = distanceOption === 0 ? Number(customDistance) * 1000 : (distanceOption || 0);
   const threeKmMinValid = Number(threeKmMin) > 0;
+
+  useEffect(() => {
+    setAgeAck(false);
+
+    if (step !== 3 || !targetDistance) {
+      setAgePolicy(null);
+      return;
+    }
+
+    let active = true;
+    getHealthPolicy(targetDistance / 1000).then((data) => {
+      if (active) setAgePolicy(data);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [step, targetDistance]);
+
+  const ageAssessment = agePolicy?.assessment ?? null;
+  const ageBlocked = !!ageAssessment && !ageAssessment.allowed && !ageAck;
   const threeKmTime = Number(threeKmMin) * 60 + (Number(threeKmSeg) || 0);
   const longestRunDistance = longestKm ? Number(longestKm) * 1000 : undefined;
   const longestRunTime =
@@ -603,6 +627,46 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
             </div>
           </div>
 
+          {ageAssessment &&
+            (!ageAssessment.allowed ||
+              ageAssessment.requiresMedicalClearance) && (
+              <div
+                className={cn(
+                  "rounded-xl border px-4 py-3",
+                  ageAssessment.allowed
+                    ? "border-amber-300 bg-amber-50"
+                    : "border-red-300 bg-red-50",
+                )}
+              >
+                <p className="flex items-center gap-2 font-sora text-sm font-semibold text-on-surface">
+                  <AlertTriangle
+                    size={16}
+                    className={ageAssessment.allowed ? "text-amber-600" : "text-red-600"}
+                  />
+                  {ageAssessment.allowed
+                    ? "Liberação médica recomendada"
+                    : "Distância não recomendada para a sua idade"}
+                </p>
+                {ageAssessment.message && (
+                  <p className="mt-1 font-geist text-xs text-on-surface-variant">
+                    {ageAssessment.message}
+                  </p>
+                )}
+                {!ageAssessment.allowed && (
+                  <label className="mt-3 flex items-start gap-2 font-geist text-xs text-on-surface">
+                    <input
+                      type="checkbox"
+                      checked={ageAck}
+                      onChange={(event) => setAgeAck(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
+                    />
+                    Estou ciente dos riscos e assumo a responsabilidade por seguir
+                    com essa meta, idealmente com acompanhamento profissional.
+                  </label>
+                )}
+              </div>
+            )}
+
           <div className="bg-surface-container-highest rounded-xl p-4">
             <p className="text-sm font-medium text-on-surface mb-2">Resumo</p>
             <ul className="text-sm text-on-surface-variant space-y-1">
@@ -642,7 +706,7 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
               variant="primary"
               onClick={handleSubmit}
               loading={loading}
-              disabled={!threeKmMinValid}
+              disabled={!threeKmMinValid || ageBlocked}
             >
               {loading ? "Salvando..." : goal ? "Salvar Alterações" : "Salvar Meta e Gerar Plano"}
             </Button>
