@@ -74,6 +74,17 @@ export interface HealthPolicy {
   disclaimer: string;
 }
 
+export interface ActivityLap {
+  id?: number;
+  name?: string;
+  distance: number;
+  movingTime: number;
+  elapsedTime?: number;
+  averageSpeed?: number;
+  maxSpeed?: number;
+  averageCadence?: number;
+}
+
 export interface Activity {
   id: string;
   name: string;
@@ -87,6 +98,11 @@ export interface Activity {
   totalElevationGain: number;
   startDate: string;
   type: string;
+  sportType?: string;
+  startDateLocal?: string | null;
+  averageCadence?: number | null;
+  maxWatts?: number | null;
+  laps?: ActivityLap[] | null;
 }
 
 export type TrainingSessionType =
