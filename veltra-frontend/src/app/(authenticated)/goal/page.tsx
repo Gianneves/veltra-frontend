@@ -537,7 +537,8 @@ function GoalForm({ goal, onComplete }: { goal?: Goal; onComplete: () => void })
               Teste dos 3km <span className="text-primary">*</span>
             </label>
             <p className="text-xs text-on-surface-variant mb-3">
-              Corra 3km o mais rápido possível e informe seu tempo abaixo.
+              Corra 3km o mais rápido possível e informe seu tempo abaixo. O
+              resultado calibra o nível e os ritmos do seu plano.
             </p>
             <div className="flex gap-3 items-center">
               <div className="flex-1">

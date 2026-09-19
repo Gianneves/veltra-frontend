@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
+  { href: "/profile", label: "Perfil", icon: UserRound },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/training-plan", label: "Plano de Treino", icon: Calendar },
   { href: "/activities", label: "Atividades", icon: Activity },
@@ -28,7 +29,6 @@ const navItems = [
   { href: "/achievements", label: "Conquistas", icon: Award },
   { href: "/coach/insights", label: "Insights", icon: Lightbulb },
   { href: "/coach/chat", label: "Coach", icon: MessageSquareText },
-  { href: "/profile", label: "Perfil", icon: UserRound },
 ];
 
 export function Sidebar() {
