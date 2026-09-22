@@ -114,7 +114,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const todayOrder = new Date().getDay();
+  const todayOrder = (new Date().getDay() + 6) % 7;
 
   const { nextSession, nextSessionIsNextWeek } = useMemo(() => {
     const byDay = (sessions: TrainingSession[]) =>

@@ -32,11 +32,11 @@ export const typeIcons: Record<string, string> = {
 };
 
 export const DAY_ORDER: Record<string, number> = {
-  Dom: 0,
-  Seg: 1,
-  Ter: 2,
-  Qua: 3,
-  Qui: 4,
-  Sex: 5,
-  Sáb: 6,
+  Seg: 0,
+  Ter: 1,
+  Qua: 2,
+  Qui: 3,
+  Sex: 4,
+  Sáb: 5,
+  Dom: 6,
 };

@@ -124,6 +124,8 @@ export interface TrainingSession {
   plannedPace: number;
   notes: string;
   completed: boolean;
+  adjusted?: boolean;
+  adjustmentNote?: string | null;
   activityId?: string | null;
   actualDistance?: number | null;
   actualPace?: number | null;
@@ -139,6 +141,10 @@ export interface TrainingPlan {
   goalId?: string;
   focus?: string;
   coachNotes?: string;
+  plannedWeeklyKm?: number | null;
+  volumeAdjusted?: boolean;
+  volumeAdjustedReason?: string | null;
+  volumeAdjustedAt?: string | null;
   sessions: TrainingSession[];
 }
 

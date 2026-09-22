@@ -53,7 +53,7 @@ function formatPace(secondsPerKm: number): string {
 function getCurrentWeekStart(): Date {
   const now = new Date();
   const start = new Date(now);
-  start.setDate(now.getDate() - now.getDay());
+  start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   start.setHours(0, 0, 0, 0);
   return start;
 }
@@ -274,6 +274,13 @@ function SessionCard({
           </div>
         )}
 
+        {session.adjusted && session.type !== "rest" && (
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+            <AlertTriangle size={11} />
+            {session.adjustmentNote ?? "Ajustado por excesso de volume"}
+          </p>
+        )}
+
         {hasActual && (
           <div className="rounded-xl bg-surface-container-highest/70 px-3 py-2 space-y-1">
             <div className="flex items-center justify-between">
@@ -390,6 +397,7 @@ export default function TrainingPlanPage() {
 
   const pastPlans = plans.filter((p) => isPastWeek(p.weekStart));
   const hasFuturePlans = plans.some((p) => !isPastWeek(p.weekStart));
+  const currentPlan = plans.find((p) => isCurrentWeek(p.weekStart));
   const visiblePlans =
     showHistory || !hasFuturePlans ? plans : plans.filter((p) => !isPastWeek(p.weekStart));
 
@@ -603,6 +611,26 @@ export default function TrainingPlanPage() {
               text={healthPolicy.disclaimer}
               className="mt-2 text-amber-700"
             />
+          )}
+        </div>
+      )}
+
+      {currentPlan?.volumeAdjusted && (
+        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
+          <p className="flex items-center gap-2 font-sora text-sm font-semibold text-primary">
+            <AlertTriangle size={16} /> Plano ajustado por excesso de volume
+          </p>
+          <p className="mt-1 font-geist text-xs text-on-surface-variant">
+            {currentPlan.volumeAdjustedReason}
+          </p>
+          {currentPlan.volumeAdjustedAt && (
+            <p className="mt-1 font-geist text-[11px] text-on-surface-variant">
+              Ajustado em{" "}
+              {new Date(currentPlan.volumeAdjustedAt).toLocaleDateString(
+                "pt-BR",
+                { day: "2-digit", month: "2-digit" }
+              )}
+            </p>
           )}
         </div>
       )}
