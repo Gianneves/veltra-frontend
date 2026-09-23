@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, MessageSquarePlus, Send, X } from "lucide-react";
+import { Check, MessageSquarePlus, Send, TriangleAlert, X } from "lucide-react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,12 +12,13 @@ import {
   getConversations,
   streamCoachMessage,
 } from "@/lib/api/coach";
-import { updateSession } from "@/lib/api/training";
+import { applySessionChange } from "@/lib/api/training";
 import { formatNumber, formatPace } from "@/lib/format";
 import { typeLabels } from "@/lib/training-display";
 import type {
   ChatMessage,
   CoachProposal,
+  CoachRejection,
   TrainingSessionType,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
@@ -87,12 +88,14 @@ function formatProposalPace(pace: number): string {
 function ProposalCard({
   proposal,
   status,
+  errorMessage,
   applying,
   onApply,
   onDiscard,
 }: {
   proposal: CoachProposal;
   status?: ProposalStatus;
+  errorMessage?: string;
   applying: boolean;
   onApply: () => void;
   onDiscard: () => void;
@@ -185,11 +188,35 @@ function ProposalCard({
           </div>
           {status === "error" && (
             <p className="mt-2 font-geist text-xs text-error">
-              Não foi possível aplicar a mudança. Tente novamente.
+              {errorMessage ?? "Não foi possível aplicar a mudança. Tente novamente."}
             </p>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function RejectionList({ rejections }: { rejections: CoachRejection[] }) {
+  if (rejections.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border border-error/30 bg-error-container/40 p-4">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-on-error-container">
+        <TriangleAlert size={14} />
+        {rejections.length === 1 ? "Mudança não aplicada" : `${rejections.length} mudanças não aplicadas`}
+      </p>
+      {rejections.map((rejection, index) => (
+        <p
+          key={`${rejection.session ?? "geral"}-${rejection.code}-${index}`}
+          className="font-geist text-sm text-on-surface-variant"
+        >
+          {rejection.message}
+        </p>
+      ))}
+      <p className="font-geist text-xs text-on-surface-variant">
+        Nada foi alterado no seu plano por essas rejeições.
+      </p>
     </div>
   );
 }
@@ -201,12 +228,18 @@ export default function CoachChatPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [proposals, setProposals] = useState<Record<string, CoachProposal>>({});
+  const [proposals, setProposals] = useState<Record<string, CoachProposal[]>>({});
+  const [rejections, setRejections] = useState<Record<string, CoachRejection[]>>({});
   const [proposalStatus, setProposalStatus] = useState<
     Record<string, ProposalStatus>
   >({});
-  const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [proposalErrors, setProposalErrors] = useState<Record<string, string>>({});
+  const [applyingKeys, setApplyingKeys] = useState<Record<string, boolean>>({});
+  const [applyingAllId, setApplyingAllId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const proposalKey = (messageId: string, proposal: CoachProposal) =>
+    `${messageId}:${proposal.sessionId}`;
 
   useEffect(() => {
     let active = true;
@@ -221,7 +254,21 @@ export default function CoachChatPage() {
         if (!active) return;
 
         setConversationId(latest.id);
-        if (history.length > 0) setMessages(history);
+        if (history.length > 0) {
+          setMessages(history);
+          const hydratedProposals: Record<string, CoachProposal[]> = {};
+          const hydratedRejections: Record<string, CoachRejection[]> = {};
+          for (const item of history) {
+            if (item.proposals && item.proposals.length > 0) {
+              hydratedProposals[item.id] = item.proposals;
+            }
+            if (item.rejections && item.rejections.length > 0) {
+              hydratedRejections[item.id] = item.rejections;
+            }
+          }
+          setProposals(hydratedProposals);
+          setRejections(hydratedRejections);
+        }
       } catch {
         // keep the welcome message
       } finally {
@@ -291,10 +338,16 @@ export default function CoachChatPage() {
         onDone: (result) => {
           setConversationId(result.conversationId);
           updatePlaceholder(() => result.message);
-          if (result.proposal) {
+          if (result.proposals.length > 0) {
             setProposals((current) => ({
               ...current,
-              [result.message.id]: result.proposal as CoachProposal,
+              [result.message.id]: result.proposals,
+            }));
+          }
+          if (result.rejections.length > 0) {
+            setRejections((current) => ({
+              ...current,
+              [result.message.id]: result.rejections,
             }));
           }
         },
@@ -308,9 +361,10 @@ export default function CoachChatPage() {
   };
 
   const handleApply = async (messageId: string, proposal: CoachProposal) => {
-    setApplyingId(messageId);
+    const key = proposalKey(messageId, proposal);
+    setApplyingKeys((current) => ({ ...current, [key]: true }));
 
-    const updated = await updateSession(
+    const result = await applySessionChange(
       proposal.planId,
       proposal.sessionId,
       proposal.changes,
@@ -318,20 +372,49 @@ export default function CoachChatPage() {
 
     setProposalStatus((current) => ({
       ...current,
-      [messageId]: updated ? "applied" : "error",
+      [key]: result.ok ? "applied" : "error",
     }));
-    setApplyingId(null);
+    if (!result.ok && result.message) {
+      setProposalErrors((current) => ({ ...current, [key]: result.message as string }));
+    }
+    setApplyingKeys((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   };
 
-  const handleDiscard = (messageId: string) => {
-    setProposalStatus((current) => ({ ...current, [messageId]: "discarded" }));
+  const handleApplyAll = async (messageId: string) => {
+    const items = (proposals[messageId] ?? []).filter(
+      (proposal) =>
+        proposalStatus[proposalKey(messageId, proposal)] !== "applied" &&
+        proposalStatus[proposalKey(messageId, proposal)] !== "discarded",
+    );
+    if (items.length === 0) return;
+
+    setApplyingAllId(messageId);
+    // Sequencial de propósito: evita condições de corrida em trocas de dia
+    // (ex.: inverte Qui/Sáb) e permite status por item em falha parcial.
+    for (const proposal of items) {
+      await handleApply(messageId, proposal);
+    }
+    setApplyingAllId(null);
+  };
+
+  const handleDiscard = (messageId: string, proposal: CoachProposal) => {
+    setProposalStatus((current) => ({
+      ...current,
+      [proposalKey(messageId, proposal)]: "discarded",
+    }));
   };
 
   const handleNewConversation = () => {
     setConversationId(undefined);
     setMessages([WELCOME]);
     setProposals({});
+    setRejections({});
     setProposalStatus({});
+    setProposalErrors({});
     setInput("");
   };
 
@@ -414,16 +497,63 @@ export default function CoachChatPage() {
                 </p>
               )}
 
-              {proposals[message.id] && (
-                <ProposalCard
-                  proposal={proposals[message.id]}
-                  status={proposalStatus[message.id]}
-                  applying={applyingId === message.id}
-                  onApply={() =>
-                    handleApply(message.id, proposals[message.id])
-                  }
-                  onDiscard={() => handleDiscard(message.id)}
-                />
+              {rejections[message.id] && (
+                <RejectionList rejections={rejections[message.id]} />
+              )}
+
+              {proposals[message.id] && proposals[message.id].length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {proposals[message.id].map((proposal) => {
+                    const key = proposalKey(message.id, proposal);
+                    return (
+                      <ProposalCard
+                        key={proposal.sessionId}
+                        proposal={proposal}
+                        status={proposalStatus[key]}
+                        errorMessage={proposalErrors[key]}
+                        applying={applyingKeys[key] === true}
+                        onApply={() => handleApply(message.id, proposal)}
+                        onDiscard={() => handleDiscard(message.id, proposal)}
+                      />
+                    );
+                  })}
+                  {(() => {
+                    const items = proposals[message.id];
+                    const applied = items.filter(
+                      (proposal) =>
+                        proposalStatus[proposalKey(message.id, proposal)] ===
+                        "applied",
+                    ).length;
+                    const pending = items.some(
+                      (proposal) =>
+                        !proposalStatus[proposalKey(message.id, proposal)],
+                    );
+                    if (items.length > 1 && !pending) {
+                      const failed = items.length - applied;
+                      return (
+                        <p className="font-geist text-xs text-on-surface-variant">
+                          {failed === 0
+                            ? `Todas as ${items.length} mudanças foram aplicadas ao seu plano.`
+                            : `${applied} de ${items.length} mudanças aplicadas${failed > 0 ? `, ${failed} falharam` : ""}. Nada foi alterado pelas que falharam.`}
+                        </p>
+                      );
+                    }
+                    if (items.length > 1 && pending) {
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleApplyAll(message.id)}
+                          loading={applyingAllId === message.id}
+                        >
+                          <Check size={14} />
+                          Aplicar todas
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               )}
 
               {message.timestamp && (

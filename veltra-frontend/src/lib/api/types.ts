@@ -317,6 +317,21 @@ export interface CoachProposal {
   reason: string;
 }
 
+export type CoachRejectionCode =
+  | "INVALID_SESSION"
+  | "PAST_OR_REST"
+  | "OUT_OF_RANGE"
+  | "AGE_CAP"
+  | "EMPTY_CHANGES"
+  | "MALFORMED"
+  | "DAY_COLLISION";
+
+export interface CoachRejection {
+  session: number | null;
+  code: CoachRejectionCode;
+  message: string;
+}
+
 export interface StreakData {
   currentStreak: number;
   bestStreak: number;
