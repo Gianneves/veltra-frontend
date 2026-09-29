@@ -5,14 +5,25 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, MessageSquarePlus, Send, TriangleAlert, X } from "lucide-react";
 import { Header } from "@/components/header";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getConversationMessages,
   getConversations,
+  deleteAllConversations,
   streamCoachMessage,
 } from "@/lib/api/coach";
-import { applySessionChange } from "@/lib/api/training";
+import { applySessionChange, applySessionsBatch } from "@/lib/api/training";
 import { formatNumber, formatPace } from "@/lib/format";
 import { typeLabels } from "@/lib/training-display";
 import type {
@@ -101,6 +112,8 @@ function ProposalCard({
   onDiscard: () => void;
 }) {
   const { before, changes } = proposal;
+  const isDeactivation = changes.type === "rest" && before.type !== "rest";
+  const isActivation = before.type === "rest" && changes.type !== undefined;
 
   const rows: { label: string; from?: string; to: string }[] = [];
 
@@ -114,17 +127,17 @@ function ProposalCard({
       to: typeLabel(changes.type),
     });
   }
-  if (changes.plannedDistance !== undefined) {
+  if (!isDeactivation && changes.plannedDistance !== undefined) {
     rows.push({
       label: "Distância",
-      from: formatDistanceKm(before.plannedDistance),
+      from: isActivation ? "—" : formatDistanceKm(before.plannedDistance),
       to: formatDistanceKm(changes.plannedDistance),
     });
   }
-  if (changes.plannedPace !== undefined) {
+  if (!isDeactivation && changes.plannedPace !== undefined) {
     rows.push({
       label: "Pace",
-      from: formatProposalPace(before.plannedPace),
+      from: isActivation ? "—" : formatProposalPace(before.plannedPace),
       to: formatProposalPace(changes.plannedPace),
     });
   }
@@ -148,6 +161,16 @@ function ProposalCard({
       {proposal.reason && (
         <p className="mt-1 font-geist text-sm text-on-surface-variant">
           {proposal.reason}
+        </p>
+      )}
+      {isDeactivation && (
+        <p className="mt-1 font-geist text-sm text-on-surface-variant">
+          Este treino vira descanso (distância zerada).
+        </p>
+      )}
+      {isActivation && (
+        <p className="mt-1 font-geist text-sm text-on-surface-variant">
+          Este descanso vira treino no mesmo dia.
         </p>
       )}
 
@@ -236,6 +259,9 @@ export default function CoachChatPage() {
   const [proposalErrors, setProposalErrors] = useState<Record<string, string>>({});
   const [applyingKeys, setApplyingKeys] = useState<Record<string, boolean>>({});
   const [applyingAllId, setApplyingAllId] = useState<string | null>(null);
+  const [confirmingNew, setConfirmingNew] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
+  const [clearError, setClearError] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const proposalKey = (messageId: string, proposal: CoachProposal) =>
@@ -392,11 +418,51 @@ export default function CoachChatPage() {
     );
     if (items.length === 0) return;
 
+    // Um único item: aplica direto (PUT individual).
+    if (items.length === 1) {
+      setApplyingAllId(messageId);
+      await handleApply(messageId, items[0]);
+      setApplyingAllId(null);
+      return;
+    }
+
     setApplyingAllId(messageId);
-    // Sequencial de propósito: evita condições de corrida em trocas de dia
-    // (ex.: inverte Qui/Sáb) e permite status por item em falha parcial.
+    // Lote atômico por plano: aplica tudo de uma vez ou rejeita tudo,
+    // evitando dias duplicados por aplicação parcial.
+    const byPlan = new Map<string, CoachProposal[]>();
     for (const proposal of items) {
-      await handleApply(messageId, proposal);
+      const list = byPlan.get(proposal.planId) ?? [];
+      list.push(proposal);
+      byPlan.set(proposal.planId, list);
+    }
+
+    for (const [planId, group] of byPlan) {
+      const result = await applySessionsBatch(
+        planId,
+        group.map((proposal) => ({
+          sessionId: proposal.sessionId,
+          ...proposal.changes,
+        })),
+      );
+      setProposalStatus((current) => {
+        const next = { ...current };
+        for (const proposal of group) {
+          next[proposalKey(messageId, proposal)] = result.ok
+            ? "applied"
+            : "error";
+        }
+        return next;
+      });
+      if (!result.ok && result.message) {
+        setProposalErrors((current) => {
+          const next = { ...current };
+          for (const proposal of group) {
+            next[proposalKey(messageId, proposal)] =
+              result.message as string;
+          }
+          return next;
+        });
+      }
     }
     setApplyingAllId(null);
   };
@@ -408,7 +474,7 @@ export default function CoachChatPage() {
     }));
   };
 
-  const handleNewConversation = () => {
+  const resetChat = () => {
     setConversationId(undefined);
     setMessages([WELCOME]);
     setProposals({});
@@ -418,6 +484,33 @@ export default function CoachChatPage() {
     setInput("");
   };
 
+  const hasHistory =
+    conversationId !== undefined ||
+    messages.some((message) => message.id !== "welcome");
+
+  const handleNewConversation = () => {
+    // Nada para apagar: só garante o estado zerado, sem confirmação.
+    if (!hasHistory || sending || clearingChat) {
+      if (!hasHistory) resetChat();
+      return;
+    }
+    setClearError(false);
+    setConfirmingNew(true);
+  };
+
+  const handleConfirmNewConversation = async () => {
+    setClearingChat(true);
+    setClearError(false);
+    const ok = await deleteAllConversations();
+    setClearingChat(false);
+    if (!ok) {
+      setClearError(true);
+      return;
+    }
+    resetChat();
+    setConfirmingNew(false);
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-4">
@@ -425,16 +518,48 @@ export default function CoachChatPage() {
           title="Coach de Corrida"
           subtitle="Converse com sua inteligência artificial"
         />
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleNewConversation}
-          disabled={sending}
-          className="mt-1 shrink-0"
-        >
-          <MessageSquarePlus size={14} />
-          Nova conversa
-        </Button>
+        <AlertDialog open={confirmingNew} onOpenChange={setConfirmingNew}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleNewConversation}
+            disabled={sending || clearingChat}
+            className="mt-1 shrink-0"
+          >
+            <MessageSquarePlus size={14} />
+            Nova conversa
+          </Button>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Começar nova conversa?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Isso apaga todo o histórico do chat com o coach e a tela
+                volta zerada. As mudanças já aplicadas ao seu plano de
+                treino são mantidas — só a conversa é excluída. Essa ação
+                não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {clearError && (
+              <p className="font-geist text-sm text-error">
+                Não foi possível apagar o histórico. Tente novamente.
+              </p>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={clearingChat}>
+                Manter conversa
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={clearingChat}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleConfirmNewConversation();
+                }}
+              >
+                {clearingChat ? "Apagando..." : "Apagar e começar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="mb-4 flex-1 space-y-4 overflow-y-auto px-1">
@@ -533,7 +658,7 @@ export default function CoachChatPage() {
                       return (
                         <p className="font-geist text-xs text-on-surface-variant">
                           {failed === 0
-                            ? `Todas as ${items.length} mudanças foram aplicadas ao seu plano.`
+                            ? `Todas as ${items.length} mudanças foram aplicadas ao seu plano de uma vez. Recarregue a página do plano para ver a semana atualizada.`
                             : `${applied} de ${items.length} mudanças aplicadas${failed > 0 ? `, ${failed} falharam` : ""}. Nada foi alterado pelas que falharam.`}
                         </p>
                       );

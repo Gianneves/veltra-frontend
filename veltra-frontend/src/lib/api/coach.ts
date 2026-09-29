@@ -29,6 +29,15 @@ export async function getConversations(): Promise<CoachConversation[]> {
   return api.get<CoachConversation[]>("/coach/chat");
 }
 
+export async function deleteAllConversations(): Promise<boolean> {
+  try {
+    await api.del<{ deleted: boolean }>("/coach/chat");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getConversationMessages(
   conversationId: string,
 ): Promise<ChatMessageWithProposals[]> {
