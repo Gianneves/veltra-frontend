@@ -79,11 +79,95 @@ export async function updateSession(
       TrainingSession,
       "plannedDistance" | "plannedPace" | "type" | "day" | "notes"
     >
-  >
+  > & { acknowledgeAgePolicy?: boolean }
 ): Promise<TrainingSession | null> {
   try {
     return await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);
   } catch {
     return null;
+  }
+}
+
+export interface BatchSessionItem {
+  sessionId: string;
+  type?: TrainingSession["type"];
+  plannedDistance?: number;
+  plannedPace?: number;
+  day?: string;
+  notes?: string;
+}
+
+export async function applySessionsBatch(
+  planId: string,
+  items: BatchSessionItem[],
+): Promise<ApplySessionResult> {
+  try {
+    await api.put<TrainingSession[]>(
+      `/training-plans/${planId}/sessions/batch`,
+      { items },
+    );
+    return { ok: true };
+  } catch (err) {
+    const status =
+      typeof err === "object" && err !== null && "status" in err
+        ? Number((err as { status: unknown }).status) || 0
+        : 0;
+    const code =
+      typeof err === "object" && err !== null && "code" in err
+        ? String((err as { code: unknown }).code)
+        : undefined;
+    return {
+      ok: false,
+      status,
+      code,
+      message: errorMessage(
+        status,
+        "Não foi possível aplicar as mudanças em lote. Nada foi alterado.",
+      ),
+    };
+  }
+}
+
+export interface ApplySessionResult {
+  ok: boolean;
+  status?: number;
+  code?: string;
+  message?: string;
+}
+
+function errorMessage(status: number, fallback: string): string {
+  if (status === 400)
+    return "Mudança recusada pelo servidor. Confira os valores e tente de novo.";
+  if (status === 404)
+    return "Treino não encontrado no plano. Recarregue a semana e peça de novo.";
+  return fallback;
+}
+
+export async function applySessionChange(
+  planId: string,
+  sessionId: string,
+  data: Partial<
+    Pick<
+      TrainingSession,
+      "plannedDistance" | "plannedPace" | "type" | "day" | "notes"
+    >
+  >,
+): Promise<ApplySessionResult> {
+  try {
+    await api.put<TrainingSession>(
+      `/training-plans/${planId}/sessions/${sessionId}`,
+      data,
+    );
+    return { ok: true };
+  } catch (err) {
+    const status =
+      typeof err === "object" && err !== null && "status" in err
+        ? Number((err as { status: unknown }).status) || 0
+        : 0;
+    return {
+      ok: false,
+      status,
+      message: errorMessage(status, "Não foi possível aplicar a mudança. Tente novamente."),
+    };
   }
 }

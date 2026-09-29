@@ -18,6 +18,7 @@ interface AuthContextValue {
   user: User | null;
   signIn: () => void;
   signOut: () => void;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -63,8 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState("unauthenticated");
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const realUser = await getAuthUser();
+    if (realUser) {
+      localStorage.setItem("veltra_user", JSON.stringify(realUser));
+      setUser(realUser);
+      setState("authenticated");
+    }
+    return realUser;
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ state, user, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ state, user, signIn, signOut, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

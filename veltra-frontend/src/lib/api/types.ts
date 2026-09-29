@@ -3,6 +3,86 @@ export interface User {
   name: string;
   avatarUrl?: string | null;
   stravaId: number;
+  birthDate?: string | null;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  stravaId: number;
+  birthDate: string | null;
+  healthConsent: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type HealthAlertSeverity = "info" | "attention" | "medical";
+
+export interface HealthAlert {
+  key: string;
+  severity: HealthAlertSeverity;
+  title: string;
+  message: string;
+  recommendation: string;
+  activityId?: string;
+  evidence?: Record<string, number | string>;
+}
+
+export interface HealthOverview {
+  age: number | null;
+  birthDate: string | null;
+  predictedMaxHeartRate: number | null;
+  alerts: HealthAlert[];
+  disclaimer: string;
+}
+
+export interface DistanceAgeRule {
+  label: string;
+  minKm: number;
+  maxKm: number | null;
+  minAge: number;
+  clearanceBelowAge: number;
+}
+
+export interface AgePlanAdjustment {
+  age: number;
+  maxLongRunKm?: number;
+  maxWeeklyKm?: number;
+  maxQualitySessions?: number;
+  volumeFactor?: number;
+  reason: string;
+}
+
+export interface AgeDistanceAssessment {
+  age?: number;
+  distanceKm: number;
+  allowed: boolean;
+  requiresMedicalClearance: boolean;
+  recommendedMinAge: number;
+  message?: string;
+}
+
+export interface HealthPolicy {
+  age: number | null;
+  birthDate: string | null;
+  predictedMaxHeartRate: number | null;
+  planAdjustment: AgePlanAdjustment | null;
+  distanceRules: DistanceAgeRule[];
+  assessment: AgeDistanceAssessment | null;
+  checkup: { severity: "info" | "medical"; message: string } | null;
+  disclaimer: string;
+}
+
+export interface ActivityLap {
+  id?: number;
+  name?: string;
+  distance: number;
+  movingTime: number;
+  elapsedTime?: number;
+  averageSpeed?: number;
+  maxSpeed?: number;
+  averageCadence?: number;
 }
 
 export interface Activity {
@@ -18,6 +98,11 @@ export interface Activity {
   totalElevationGain: number;
   startDate: string;
   type: string;
+  sportType?: string;
+  startDateLocal?: string | null;
+  averageCadence?: number | null;
+  maxWatts?: number | null;
+  laps?: ActivityLap[] | null;
 }
 
 export type TrainingSessionType =
@@ -39,6 +124,8 @@ export interface TrainingSession {
   plannedPace: number;
   notes: string;
   completed: boolean;
+  adjusted?: boolean;
+  adjustmentNote?: string | null;
   activityId?: string | null;
   actualDistance?: number | null;
   actualPace?: number | null;
@@ -54,6 +141,10 @@ export interface TrainingPlan {
   goalId?: string;
   focus?: string;
   coachNotes?: string;
+  plannedWeeklyKm?: number | null;
+  volumeAdjusted?: boolean;
+  volumeAdjustedReason?: string | null;
+  volumeAdjustedAt?: string | null;
   sessions: TrainingSession[];
 }
 
@@ -224,6 +315,21 @@ export interface CoachProposal {
     notes?: string;
   };
   reason: string;
+}
+
+export type CoachRejectionCode =
+  | "INVALID_SESSION"
+  | "PAST_OR_REST"
+  | "OUT_OF_RANGE"
+  | "AGE_CAP"
+  | "EMPTY_CHANGES"
+  | "MALFORMED"
+  | "DAY_COLLISION";
+
+export interface CoachRejection {
+  session: number | null;
+  code: CoachRejectionCode;
+  message: string;
 }
 
 export interface StreakData {

@@ -9,21 +9,16 @@ function LoginContent() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-surface p-6">
       <div
-        className="absolute inset-0 z-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/hero-bg.svg')" }}
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/images/veltra-login-bg.png')" }}
       />
-      <div className="absolute inset-0 z-0 hero-gradient hidden md:block" />
-      <div className="absolute inset-0 z-0 bg-gradient-to-t from-surface via-surface/40 to-transparent md:hidden" />
 
       <div className="relative z-10 flex flex-col items-center max-w-sm w-full text-center">
-        <img src="/images/veltra-logo-horizontal.svg" alt="Veltra" className="h-24 w-auto max-w-full mb-6" />
-
-        <span className="inline-flex items-center gap-2 rounded-full bg-primary-container/20 px-3 py-1 text-on-primary-container font-geist text-xs font-semibold uppercase tracking-widest mb-4">
-          <svg viewBox="0 0 24 24" fill="#bb3619" className="h-3.5 w-3.5">
-            <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z" />
-          </svg>
-          Kinetic Precision AI
-        </span>
+        <img
+          src="/images/veltra-wordmark-only.svg?v=2"
+          alt="Veltra"
+          className="mx-auto block h-20 w-auto max-w-full mb-6"
+        />
 
         <h1 className="font-sora text-4xl font-extrabold text-on-surface tracking-tight leading-tight">
           Transforme cada <span className="text-primary">passada</span> em pura performance.

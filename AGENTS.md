@@ -25,8 +25,8 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 
 - Toda rota autenticada resolve o usuário via `AuthSessionService.resolveUserId(req)` e escopa as queries por `user: { id: userId }`. Nunca criar endpoint que retorne dados sem filtro de usuário.
 - `AuthSessionService` vive em `src/auth/session.module.ts` (`SessionModule`). Módulos que não podem importar `AuthModule` (ciclo `UsersModule -> ActivitiesModule`) devem importar `SessionModule`.
-- `/analytics/weekly` considera apenas a semana atual (domingo a sábado, hora local).
-- Sessões de treino `type: "rest"` nunca são marcadas como `completed`. Lógica de "próximo treino" deve ignorar `rest` e usar `dayOrder` (Dom=0 … Sáb=6) comparando com o dia de hoje; se não houver treino na semana, buscar a semana seguinte.
+- `/analytics/weekly` considera apenas a semana atual (segunda a domingo, hora local).
+- Sessões de treino `type: "rest"` nunca são marcadas como `completed`. Lógica de "próximo treino" deve ignorar `rest` e usar `dayOrder` (Seg=0 … Dom=6) comparando com o dia de hoje; se não houver treino na semana, buscar a semana seguinte.
 
 ## Frontend (Next.js)
 

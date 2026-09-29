@@ -3,20 +3,33 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, MessageSquarePlus, Send, X } from "lucide-react";
+import { Check, MessageSquarePlus, Send, TriangleAlert, X } from "lucide-react";
 import { Header } from "@/components/header";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   getConversationMessages,
   getConversations,
+  deleteAllConversations,
   streamCoachMessage,
 } from "@/lib/api/coach";
-import { updateSession } from "@/lib/api/training";
+import { applySessionChange, applySessionsBatch } from "@/lib/api/training";
 import { formatNumber, formatPace } from "@/lib/format";
 import { typeLabels } from "@/lib/training-display";
 import type {
   ChatMessage,
   CoachProposal,
+  CoachRejection,
   TrainingSessionType,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
@@ -86,17 +99,21 @@ function formatProposalPace(pace: number): string {
 function ProposalCard({
   proposal,
   status,
+  errorMessage,
   applying,
   onApply,
   onDiscard,
 }: {
   proposal: CoachProposal;
   status?: ProposalStatus;
+  errorMessage?: string;
   applying: boolean;
   onApply: () => void;
   onDiscard: () => void;
 }) {
   const { before, changes } = proposal;
+  const isDeactivation = changes.type === "rest" && before.type !== "rest";
+  const isActivation = before.type === "rest" && changes.type !== undefined;
 
   const rows: { label: string; from?: string; to: string }[] = [];
 
@@ -110,17 +127,17 @@ function ProposalCard({
       to: typeLabel(changes.type),
     });
   }
-  if (changes.plannedDistance !== undefined) {
+  if (!isDeactivation && changes.plannedDistance !== undefined) {
     rows.push({
       label: "Distância",
-      from: formatDistanceKm(before.plannedDistance),
+      from: isActivation ? "—" : formatDistanceKm(before.plannedDistance),
       to: formatDistanceKm(changes.plannedDistance),
     });
   }
-  if (changes.plannedPace !== undefined) {
+  if (!isDeactivation && changes.plannedPace !== undefined) {
     rows.push({
       label: "Pace",
-      from: formatProposalPace(before.plannedPace),
+      from: isActivation ? "—" : formatProposalPace(before.plannedPace),
       to: formatProposalPace(changes.plannedPace),
     });
   }
@@ -144,6 +161,16 @@ function ProposalCard({
       {proposal.reason && (
         <p className="mt-1 font-geist text-sm text-on-surface-variant">
           {proposal.reason}
+        </p>
+      )}
+      {isDeactivation && (
+        <p className="mt-1 font-geist text-sm text-on-surface-variant">
+          Este treino vira descanso (distância zerada).
+        </p>
+      )}
+      {isActivation && (
+        <p className="mt-1 font-geist text-sm text-on-surface-variant">
+          Este descanso vira treino no mesmo dia.
         </p>
       )}
 
@@ -184,7 +211,7 @@ function ProposalCard({
           </div>
           {status === "error" && (
             <p className="mt-2 font-geist text-xs text-error">
-              Não foi possível aplicar a mudança. Tente novamente.
+              {errorMessage ?? "Não foi possível aplicar a mudança. Tente novamente."}
             </p>
           )}
         </>
@@ -193,18 +220,52 @@ function ProposalCard({
   );
 }
 
+function RejectionList({ rejections }: { rejections: CoachRejection[] }) {
+  if (rejections.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border border-error/30 bg-error-container/40 p-4">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-on-error-container">
+        <TriangleAlert size={14} />
+        {rejections.length === 1 ? "Mudança não aplicada" : `${rejections.length} mudanças não aplicadas`}
+      </p>
+      {rejections.map((rejection, index) => (
+        <p
+          key={`${rejection.session ?? "geral"}-${rejection.code}-${index}`}
+          className="font-geist text-sm text-on-surface-variant"
+        >
+          {rejection.message}
+        </p>
+      ))}
+      <p className="font-geist text-xs text-on-surface-variant">
+        Nada foi alterado no seu plano por essas rejeições.
+      </p>
+    </div>
+  );
+}
+
 export default function CoachChatPage() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [proposals, setProposals] = useState<Record<string, CoachProposal>>({});
+  const [proposals, setProposals] = useState<Record<string, CoachProposal[]>>({});
+  const [rejections, setRejections] = useState<Record<string, CoachRejection[]>>({});
   const [proposalStatus, setProposalStatus] = useState<
     Record<string, ProposalStatus>
   >({});
-  const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [proposalErrors, setProposalErrors] = useState<Record<string, string>>({});
+  const [applyingKeys, setApplyingKeys] = useState<Record<string, boolean>>({});
+  const [applyingAllId, setApplyingAllId] = useState<string | null>(null);
+  const [confirmingNew, setConfirmingNew] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
+  const [clearError, setClearError] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const proposalKey = (messageId: string, proposal: CoachProposal) =>
+    `${messageId}:${proposal.sessionId}`;
 
   useEffect(() => {
     let active = true;
@@ -219,7 +280,21 @@ export default function CoachChatPage() {
         if (!active) return;
 
         setConversationId(latest.id);
-        if (history.length > 0) setMessages(history);
+        if (history.length > 0) {
+          setMessages(history);
+          const hydratedProposals: Record<string, CoachProposal[]> = {};
+          const hydratedRejections: Record<string, CoachRejection[]> = {};
+          for (const item of history) {
+            if (item.proposals && item.proposals.length > 0) {
+              hydratedProposals[item.id] = item.proposals;
+            }
+            if (item.rejections && item.rejections.length > 0) {
+              hydratedRejections[item.id] = item.rejections;
+            }
+          }
+          setProposals(hydratedProposals);
+          setRejections(hydratedRejections);
+        }
       } catch {
         // keep the welcome message
       } finally {
@@ -289,10 +364,16 @@ export default function CoachChatPage() {
         onDone: (result) => {
           setConversationId(result.conversationId);
           updatePlaceholder(() => result.message);
-          if (result.proposal) {
+          if (result.proposals.length > 0) {
             setProposals((current) => ({
               ...current,
-              [result.message.id]: result.proposal as CoachProposal,
+              [result.message.id]: result.proposals,
+            }));
+          }
+          if (result.rejections.length > 0) {
+            setRejections((current) => ({
+              ...current,
+              [result.message.id]: result.rejections,
             }));
           }
         },
@@ -306,9 +387,10 @@ export default function CoachChatPage() {
   };
 
   const handleApply = async (messageId: string, proposal: CoachProposal) => {
-    setApplyingId(messageId);
+    const key = proposalKey(messageId, proposal);
+    setApplyingKeys((current) => ({ ...current, [key]: true }));
 
-    const updated = await updateSession(
+    const result = await applySessionChange(
       proposal.planId,
       proposal.sessionId,
       proposal.changes,
@@ -316,21 +398,117 @@ export default function CoachChatPage() {
 
     setProposalStatus((current) => ({
       ...current,
-      [messageId]: updated ? "applied" : "error",
+      [key]: result.ok ? "applied" : "error",
     }));
-    setApplyingId(null);
+    if (!result.ok && result.message) {
+      setProposalErrors((current) => ({ ...current, [key]: result.message as string }));
+    }
+    setApplyingKeys((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   };
 
-  const handleDiscard = (messageId: string) => {
-    setProposalStatus((current) => ({ ...current, [messageId]: "discarded" }));
+  const handleApplyAll = async (messageId: string) => {
+    const items = (proposals[messageId] ?? []).filter(
+      (proposal) =>
+        proposalStatus[proposalKey(messageId, proposal)] !== "applied" &&
+        proposalStatus[proposalKey(messageId, proposal)] !== "discarded",
+    );
+    if (items.length === 0) return;
+
+    // Um único item: aplica direto (PUT individual).
+    if (items.length === 1) {
+      setApplyingAllId(messageId);
+      await handleApply(messageId, items[0]);
+      setApplyingAllId(null);
+      return;
+    }
+
+    setApplyingAllId(messageId);
+    // Lote atômico por plano: aplica tudo de uma vez ou rejeita tudo,
+    // evitando dias duplicados por aplicação parcial.
+    const byPlan = new Map<string, CoachProposal[]>();
+    for (const proposal of items) {
+      const list = byPlan.get(proposal.planId) ?? [];
+      list.push(proposal);
+      byPlan.set(proposal.planId, list);
+    }
+
+    for (const [planId, group] of byPlan) {
+      const result = await applySessionsBatch(
+        planId,
+        group.map((proposal) => ({
+          sessionId: proposal.sessionId,
+          ...proposal.changes,
+        })),
+      );
+      setProposalStatus((current) => {
+        const next = { ...current };
+        for (const proposal of group) {
+          next[proposalKey(messageId, proposal)] = result.ok
+            ? "applied"
+            : "error";
+        }
+        return next;
+      });
+      if (!result.ok && result.message) {
+        setProposalErrors((current) => {
+          const next = { ...current };
+          for (const proposal of group) {
+            next[proposalKey(messageId, proposal)] =
+              result.message as string;
+          }
+          return next;
+        });
+      }
+    }
+    setApplyingAllId(null);
   };
 
-  const handleNewConversation = () => {
+  const handleDiscard = (messageId: string, proposal: CoachProposal) => {
+    setProposalStatus((current) => ({
+      ...current,
+      [proposalKey(messageId, proposal)]: "discarded",
+    }));
+  };
+
+  const resetChat = () => {
     setConversationId(undefined);
     setMessages([WELCOME]);
     setProposals({});
+    setRejections({});
     setProposalStatus({});
+    setProposalErrors({});
     setInput("");
+  };
+
+  const hasHistory =
+    conversationId !== undefined ||
+    messages.some((message) => message.id !== "welcome");
+
+  const handleNewConversation = () => {
+    // Nada para apagar: só garante o estado zerado, sem confirmação.
+    if (!hasHistory || sending || clearingChat) {
+      if (!hasHistory) resetChat();
+      return;
+    }
+    setClearError(false);
+    setConfirmingNew(true);
+  };
+
+  const handleConfirmNewConversation = async () => {
+    setClearingChat(true);
+    setClearError(false);
+    const ok = await deleteAllConversations();
+    setClearingChat(false);
+    if (!ok) {
+      setClearError(true);
+      return;
+    }
+    resetChat();
+    setConfirmingNew(false);
   };
 
   return (
@@ -340,16 +518,48 @@ export default function CoachChatPage() {
           title="Coach de Corrida"
           subtitle="Converse com sua inteligência artificial"
         />
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleNewConversation}
-          disabled={sending}
-          className="mt-1 shrink-0"
-        >
-          <MessageSquarePlus size={14} />
-          Nova conversa
-        </Button>
+        <AlertDialog open={confirmingNew} onOpenChange={setConfirmingNew}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleNewConversation}
+            disabled={sending || clearingChat}
+            className="mt-1 shrink-0"
+          >
+            <MessageSquarePlus size={14} />
+            Nova conversa
+          </Button>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Começar nova conversa?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Isso apaga todo o histórico do chat com o coach e a tela
+                volta zerada. As mudanças já aplicadas ao seu plano de
+                treino são mantidas — só a conversa é excluída. Essa ação
+                não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {clearError && (
+              <p className="font-geist text-sm text-error">
+                Não foi possível apagar o histórico. Tente novamente.
+              </p>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={clearingChat}>
+                Manter conversa
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={clearingChat}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleConfirmNewConversation();
+                }}
+              >
+                {clearingChat ? "Apagando..." : "Apagar e começar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="mb-4 flex-1 space-y-4 overflow-y-auto px-1">
@@ -371,13 +581,15 @@ export default function CoachChatPage() {
               src={
                 message.role === "coach"
                   ? "/images/avatar-coach.svg"
-                  : "/images/veltra-icon-light-bg.svg"
+                  : (user?.avatarUrl ?? "/images/veltra-icon-light-bg.svg")
               }
               alt={message.role === "coach" ? "Coach" : "Você"}
               className={cn(
                 "h-8 w-8 shrink-0 rounded-full",
                 message.role === "user" &&
+                  !user?.avatarUrl &&
                   "bg-surface-container-highest p-1",
+                message.role === "user" && user?.avatarUrl && "object-cover",
               )}
             />
 
@@ -410,16 +622,63 @@ export default function CoachChatPage() {
                 </p>
               )}
 
-              {proposals[message.id] && (
-                <ProposalCard
-                  proposal={proposals[message.id]}
-                  status={proposalStatus[message.id]}
-                  applying={applyingId === message.id}
-                  onApply={() =>
-                    handleApply(message.id, proposals[message.id])
-                  }
-                  onDiscard={() => handleDiscard(message.id)}
-                />
+              {rejections[message.id] && (
+                <RejectionList rejections={rejections[message.id]} />
+              )}
+
+              {proposals[message.id] && proposals[message.id].length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {proposals[message.id].map((proposal) => {
+                    const key = proposalKey(message.id, proposal);
+                    return (
+                      <ProposalCard
+                        key={proposal.sessionId}
+                        proposal={proposal}
+                        status={proposalStatus[key]}
+                        errorMessage={proposalErrors[key]}
+                        applying={applyingKeys[key] === true}
+                        onApply={() => handleApply(message.id, proposal)}
+                        onDiscard={() => handleDiscard(message.id, proposal)}
+                      />
+                    );
+                  })}
+                  {(() => {
+                    const items = proposals[message.id];
+                    const applied = items.filter(
+                      (proposal) =>
+                        proposalStatus[proposalKey(message.id, proposal)] ===
+                        "applied",
+                    ).length;
+                    const pending = items.some(
+                      (proposal) =>
+                        !proposalStatus[proposalKey(message.id, proposal)],
+                    );
+                    if (items.length > 1 && !pending) {
+                      const failed = items.length - applied;
+                      return (
+                        <p className="font-geist text-xs text-on-surface-variant">
+                          {failed === 0
+                            ? `Todas as ${items.length} mudanças foram aplicadas ao seu plano de uma vez. Recarregue a página do plano para ver a semana atualizada.`
+                            : `${applied} de ${items.length} mudanças aplicadas${failed > 0 ? `, ${failed} falharam` : ""}. Nada foi alterado pelas que falharam.`}
+                        </p>
+                      );
+                    }
+                    if (items.length > 1 && pending) {
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleApplyAll(message.id)}
+                          loading={applyingAllId === message.id}
+                        >
+                          <Check size={14} />
+                          Aplicar todas
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               )}
 
               {message.timestamp && (

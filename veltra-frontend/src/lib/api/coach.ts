@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   CoachConversation,
   CoachProposal,
+  CoachRejection,
 } from "./types";
 
 const BASE_URL =
@@ -15,15 +16,31 @@ interface RawMessage {
   role: string;
   content: string;
   createdAt: string | null;
+  proposals?: CoachProposal[] | null;
+  rejections?: CoachRejection[] | null;
+}
+
+export interface ChatMessageWithProposals extends ChatMessage {
+  proposals?: CoachProposal[];
+  rejections?: CoachRejection[];
 }
 
 export async function getConversations(): Promise<CoachConversation[]> {
   return api.get<CoachConversation[]>("/coach/chat");
 }
 
+export async function deleteAllConversations(): Promise<boolean> {
+  try {
+    await api.del<{ deleted: boolean }>("/coach/chat");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getConversationMessages(
   conversationId: string,
-): Promise<ChatMessage[]> {
+): Promise<ChatMessageWithProposals[]> {
   const messages = await api.get<RawMessage[]>(
     `/coach/chat?conversationId=${conversationId}`,
   );
@@ -33,6 +50,8 @@ export async function getConversationMessages(
     role: message.role === "user" ? "user" : "coach",
     content: message.content,
     timestamp: message.createdAt ?? "",
+    proposals: message.proposals ?? [],
+    rejections: message.rejections ?? [],
   }));
 }
 
@@ -40,6 +59,8 @@ export interface CoachStreamResult {
   conversationId: string;
   message: ChatMessage;
   proposal: CoachProposal | null;
+  proposals: CoachProposal[];
+  rejections: CoachRejection[];
 }
 
 interface StreamHandlers {
@@ -70,6 +91,8 @@ function handleFrame(frame: string, handlers: StreamHandlers) {
         timestamp?: string;
       };
       proposal?: CoachProposal | null;
+      proposals?: CoachProposal[] | null;
+      rejections?: CoachRejection[] | null;
     };
 
     if (event === "token" && parsed.token) {
@@ -78,6 +101,9 @@ function handleFrame(frame: string, handlers: StreamHandlers) {
     }
 
     if (event === "done" && parsed.conversationId && parsed.message) {
+      const proposals =
+        parsed.proposals ??
+        (parsed.proposal ? [parsed.proposal] : []);
       handlers.onDone({
         conversationId: parsed.conversationId,
         message: {
@@ -86,7 +112,9 @@ function handleFrame(frame: string, handlers: StreamHandlers) {
           content: parsed.message.content,
           timestamp: parsed.message.timestamp ?? "",
         },
-        proposal: parsed.proposal ?? null,
+        proposal: proposals[0] ?? parsed.proposal ?? null,
+        proposals,
+        rejections: parsed.rejections ?? [],
       });
       return;
     }

@@ -13,11 +13,13 @@ import {
   Award,
   Lightbulb,
   MessageSquareText,
+  UserRound,
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
+  { href: "/profile", label: "Perfil", icon: UserRound },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/training-plan", label: "Plano de Treino", icon: Calendar },
   { href: "/activities", label: "Atividades", icon: Activity },
@@ -36,7 +38,11 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-64 flex-col border-r border-surface-container-high bg-surface-container-low">
       <div className="flex justify-center px-4 py-5 border-b border-surface-container-high">
-        <img src="/images/veltra-logo-horizontal.svg" alt="Veltra" className="h-16 w-auto max-w-full" />
+        <img
+          src="/images/veltra-wordmark-compact.svg"
+          alt="Veltra"
+          className="mx-auto block h-14 w-auto max-w-full"
+        />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
