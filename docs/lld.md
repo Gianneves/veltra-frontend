@@ -102,6 +102,10 @@ Ordem de configuração:
 | `STRAVA_WEBHOOK_VERIFY_TOKEN`, `STRAVA_WEBHOOK_CALLBACK_URL` | Assinatura e verificação do webhook. |
 | `SECRET_KEY_JWT` | Assinatura do JWT (`insecure-dev-secret` como fallback). |
 | `OPENAI_API_KEY` | IA e embeddings. |
+| `OPENAI_MODEL_ROUTING` | `auto` (padrão), `cheap` ou `premium`; modo de seleção de modelo. |
+| `OPENAI_MODEL_CHEAP` | Modelo do tier barato (padrão `gpt-4o-mini`). |
+| `OPENAI_MODEL_PREMIUM` | Modelo do tier premium (padrão `gpt-4o`). |
+| `OPENAI_MODEL_ESCALATION` | `false` desliga o retry no premium quando o parsing falha (padrão ligado). |
 | `ENCRYPTION_KEY` | Presente no `.env` de exemplo, mas **sem uso no código atual**. |
 
 ---
@@ -902,18 +906,47 @@ No frontend, `streamCoachMessage` lê o body via `ReadableStream`, separa frames
 
 ## 12. AI service
 
-Arquivo: `src/ai/ai.service.ts`.
+Arquivos: `src/ai/ai.service.ts` (prompts, parsing e chamadas) e `src/ai/model-router.ts` (seleção de modelo).
 
-| Função | Modelo | Temperatura | Timeout |
-|---|---|---|---|
-| `createEmbedding` | `text-embedding-3-small` | — | não explícito |
-| `generateInsight` | `gpt-4o-mini` | 0 | não explícito |
-| `generateCoachReplyStream` | `gpt-4o-mini` | 0.3 | 60 s |
-| `generateActivityInsight` | `gpt-4o-mini` | 0.3 | 30 s |
-| `generatePlanReview` | `gpt-4o-mini` | 0.2 | 45 s |
-| `classifyActivityMatch` | modelo do serviço | — | 20 s |
+| Função | Tarefa | Tier padrão | Temperatura | Timeout | Max tokens |
+|---|---|---|---|---|---|
+| `createEmbedding` | — | `text-embedding-3-small` | — | não explícito | — |
+| `generateInsight` | `generic` | cheap | 0 | não explícito | 700 |
+| `generateCoachReplyStream` | `coach_reply` | auto (cheap/premium) | 0.3 | 60 s | 1.400 |
+| `generateActivityInsight` | `activity_insight` | auto (cheap/premium) | 0.3 | 30 s | 900 |
+| `generatePlanReview` | `plan_review` | premium | 0.2 | 45 s | 2.000 |
+| `classifyActivityMatch` | `activity_match` | cheap | 0 | 20 s | 300 |
 
 Sem `OPENAI_API_KEY`, as funções retornam `null` (e o fluxo segue sem IA).
+
+### 12.1 Roteamento de modelos
+
+`AiModelRouter` (`src/ai/model-router.ts`) escolhe o tier antes da chamada, sem custo adicional de classificação:
+
+- `OPENAI_MODEL_ROUTING=auto` (padrão): decide por tarefa/complexidade; `cheap` ou `premium` forçam o tier.
+- Nomes: `OPENAI_MODEL_CHEAP` (padrão `gpt-4o-mini`) e `OPENAI_MODEL_PREMIUM` (padrão `gpt-4o`).
+- Regras (`decide`):
+  - `activity_match`, `generic` → cheap;
+  - `plan_review` → premium;
+  - `activity_insight` → premium se houver sinal de saúde ou contexto > 6.000 caracteres; senão cheap;
+  - `coach_reply` → premium se houver sinal de saúde, intenção de mudar o plano, contexto > 8.000 caracteres ou histórico > 12 mensagens; senão cheap.
+- Sinais textuais: `PLAN_CHANGE_PATTERN` (mudar, ajustar, trocar, reduzir, ativar etc.) e `HEALTH_SIGNAL_PATTERN` (dor, lesão, sintoma, saúde, alerta etc.).
+- `RunnableBranch` do LangChain roteia para `ChatOpenAI` cheap ou premium preservando streaming.
+- Escalonamento: em `invokeParsed`, se o cheap devolver saída que não passa no parser, uma única nova chamada usa o premium (`OPENAI_MODEL_ESCALATION=false` desliga). No streaming, o fallback premium só ocorre se nenhum token foi emitido.
+- Uso: `console.info('[ai] task=... tier=... model=... usage=...')` quando a OpenAI retorna `usage_metadata`.
+
+### 12.2 Onde o custo é consumido
+
+| Fluxo | Frequência | Chamadas |
+|---|---|---|
+| Ingestão/resync de atividade | Por atividade nova | 1 embedding + 1 insight (se ainda não houver insight `completed`) |
+| Geração/regeneração de plano | Por meta/plano | 1 análise de plano (premium) + enriquecimento das sessões |
+| Chat do coach | Por mensagem | 1 resposta (+ eventual retry de proposta ou fallback premium) |
+| Pareamento de atividade | Quando o score heurístico é ambíguo | 1 classificação cheap (às vezes premium por escalonamento) |
+
+- O histórico do chat é limitado a 20 mensagens, mas o contexto inclui perfil, metas, 3 planos futuros e 10 atividades recentes.
+- Não há orçamento por usuário nem cache de respostas do chat; insights e embeddings já são persistidos e reaproveitados.
+- O resync evita regenerar insight quando o registro está `completed`.
 
 Parsing:
 
@@ -1233,16 +1266,17 @@ Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
 
 1. Definir o contexto em um builder puro (como `activity-insight-context.ts`).
 2. Adicionar prompt e parsing em `ai.service.ts`.
-3. Nunca permitir que a IA grave direto no banco.
-4. Se gerar proposta, validar no service de domínio antes de expor.
-5. Documentar os limites e códigos de rejeição no LLD.
+3. Declarar a tarefa em `AiTask`, o tier em `decide` e o teto de tokens em `MAX_TOKENS_BY_TASK`.
+4. Nunca permitir que a IA grave direto no banco.
+5. Se gerar proposta, validar no service de domínio antes de expor.
+6. Documentar os limites, timeouts, tier e códigos de rejeição no LLD.
 
 ---
 
 ## 20. Lacunas e cuidados conhecidos
 
 - **Dados estáticos em Análises**: os gráficos de distância semanal, ritmo e zonas de FC ainda usam constantes de demonstração.
-- **Embedding sem busca**: o vetor é gerado, mas não há consulta por similaridade.
+- **Embedding sem busca**: o vetor é gerado apenas no `create` manual (`POST /activities`); webhook/resync usam `upsert` com `generateAI = false` e não geram embedding. Não há consulta por similaridade.
 - **Dimensão do vetor**: `1563` na entidade vs `1536` do modelo.
 - **Sincronização no login**: `UsersService.createOrUpdate` importa todo o histórico; em contas grandes pode demorar.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).

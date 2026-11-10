@@ -71,7 +71,7 @@ flowchart LR
   B -->|sessão, cache, fila| R[(Redis)]
   B -->|OAuth / REST| S[Strava]
   S -->|Webhook| B
-  B -->|LangChain| O[OpenAI<br/>gpt-4o-mini + embeddings]
+  B -->|LangChain| O[OpenAI<br/>roteamento cheap/premium + embeddings]
   B -->|Swagger /api-doc| D[Documentação da API]
 ```
 
@@ -91,6 +91,7 @@ flowchart LR
 - **API stateless**: a sessão vive no Redis e no cookie, não na memória do processo.
 - **Escopo por usuário**: toda rota autenticada resolve o `userId` e filtra queries por ele.
 - **IA não escreve direto no plano**: o coach apenas propõe; o backend valida e o frontend aplica.
+- **Roteamento de modelos por custo**: tarefas simples usam o tier barato; análises complexas, contexto longo, saúde ou negociação de plano usam o tier premium, com escalonamento em caso de parsing inválido.
 - **Regras de segurança no servidor**: idade, volume, pace, colisão de dias e estado da sessão.
 - **Contrato único de API**: respostas em `snake_case`, convertidas para `camelCase` no client.
 - **Datas de semana**: segunda a domingo no fuso local do servidor.
@@ -140,7 +141,7 @@ Componentes transversais:
 | `analytics` | Estatísticas da semana atual. | Activities |
 | `achievements` | Troféus, melhores esforços e previsões. | Activities |
 | `health` | Alertas e políticas de segurança por idade. | Activities, Users |
-| `ai` | Prompts, chamadas OpenAI/LangChain e parsing. | OpenAI |
+| `ai` | Prompts, roteamento de modelos, chamadas OpenAI/LangChain, limites de tokens e parsing. | OpenAI |
 | `redis` | Wrapper de cache, locks e filas. | Redis |
 
 ---
@@ -214,7 +215,20 @@ Componentes transversais:
 - **Analytics semanal**: soma distância, tempo e número de corridas da semana atual (segunda a domingo).
 - **Conquistas**: troféus por marcos, distância, consistência e velocidade; melhores tempos por distância; previsões por Riegel com base nos últimos 90 dias.
 
-### 6.7 Saúde e segurança
+### 6.7 Roteamento de modelos de IA
+
+- Cada chamada declara uma tarefa (`activity_match`, `activity_insight`, `plan_review`, `coach_reply`, `generic`).
+- O `AiModelRouter` decide entre tier **cheap** (`gpt-4o-mini` por padrão) e **premium** (`gpt-4o` por padrão) por heurísticas determinísticas, sem chamada extra à IA.
+- Regras:
+  - pareamento de atividade e prompts genéricos → cheap;
+  - análise de plano → premium (JSON multi-semana persistido no plano);
+  - insight de corrida → premium quando há sinal de saúde ou contexto > 6.000 caracteres;
+  - chat do coach → premium quando há sinal de saúde, intenção de mudar o plano, contexto > 8.000 caracteres ou histórico > 12 mensagens.
+- Se o tier cheap devolver conteúdo que não passa no parsing, a chamada é repetida uma vez no premium (`OPENAI_MODEL_ESCALATION`, padrão ligado).
+- Cada tarefa tem teto de tokens de saída; o uso retornado pela OpenAI é registrado em log (`[ai] task=... tier=... usage=...`).
+- Modos: `OPENAI_MODEL_ROUTING=auto|cheap|premium` (padrão `auto`). Nomes dos modelos vêm de `OPENAI_MODEL_CHEAP` e `OPENAI_MODEL_PREMIUM`.
+
+### 6.8 Saúde e segurança
 
 - A idade é calculada a partir de `birthDate`.
 - A FC máxima prevista usa a fórmula de Tanaka (`208 - 0,7 × idade`).
@@ -311,6 +325,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 - Paginação de atividades.
 - Limites de contexto: 20 mensagens de histórico, 10 atividades recentes, 3 planos futuros, 5 propostas.
 - Timeouts de IA: 45 s (plano), 30 s (insight), 60 s (coach), 20 s (pareamento).
+- Teto de tokens de saída por tarefa: 300 (pareamento), 700 (genérico), 900 (insight), 1.400 (coach), 2.000 (análise de plano).
 - Índices únicos em `activities.activityStravaId`, `users.stravaId` e `insights.activityId`.
 
 ### Confiabilidade
@@ -322,7 +337,8 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 ### Observabilidade
 
 - Logs via `console.error`/`console.warn` em falhas de IA, fila e Strava.
-- **Lacuna:** não há métricas, tracing ou logging estruturado.
+- Uso de tokens das chamadas de IA é registrado em `console.info` (`[ai] task=... tier=... usage=...`).
+- **Lacuna:** não há métricas, tracing ou logging estruturado, nem orçamento/limite de gasto por usuário.
 
 ### CI/CD
 
@@ -345,7 +361,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 | Item | Situação atual |
 |---|---|
 | Gráficos de Análises | Distância semanal, evolução de ritmo e zonas de FC usam dados estáticos de demonstração; apenas a elevação total é calculada das atividades. |
-| Busca semântica | O embedding é gerado no cadastro/resync, mas não há endpoint de busca por similaridade. |
+| Busca semântica | O embedding só é gerado no cadastro manual da atividade (`POST /activities`); importações via webhook/resync usam `upsert` e não geram embedding. Não há endpoint de busca por similaridade. |
 | Dimensão do embedding | O modelo `text-embedding-3-small` gera 1536 dimensões; a entidade declara `vector` com `length: 1563` (inconsistência a revisar). |
 | Testes do backend | Quatro suítes têm falha pré-existente de DI: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec`. |
 | Lint do frontend | Não há configuração de ESLint; `npm run lint` (`next lint`) fica interativo. |
