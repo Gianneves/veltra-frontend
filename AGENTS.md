@@ -15,8 +15,11 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 
 - Padrão: o usuário é dono dos processos nas portas 3000/3001 e dos containers `veltra_db`/`veltra_cache`. O agente não inicia, reinicia, encerra nem mata nada por conta própria.
 - Exceção: com pedido explícito ("suba o frontend", "inicie o backend"), o agente pode iniciar somente o serviço pedido, em background, com log em `/tmp/opencode/<servico>.log` (ex.: `nohup npm run dev > /tmp/opencode/frontend.log 2>&1 &`).
+- Com pedido explícito para subir o projeto/servidores ("suba o projeto", "inicie os servidores"), o agente também pode subir as dependências em `veltra-backend/` com `docker compose up -d db redis` (containers `veltra_db` e `veltra_cache`), antes de iniciar frontend/backend. Verifique `docker ps`, as portas 5432/6379 e se os containers já estão rodando; não recrie se estiverem de pé.
+- Sem pedido explícito, o agente não gerencia containers: não cria, não reinicia e não remove `veltra_db`/`veltra_cache` nem volumes.
 - Antes de iniciar, verifique a porta (`lsof -i :3000` / `:3001`). Se já estiver em uso, não suba outro processo: informe que já está rodando e pergunte se pode reiniciar.
-- O agente só encerra/reinicia processos que ele mesmo iniciou nesta sessão, e apenas com pedido explícito. Nunca mate processos do usuário nem containers.
+- O backend precisa de Postgres/Redis de pé; se o banco estiver indisponível ele esgota os retries e aborta. Nesse caso, suba os containers e reinicie apenas o backend iniciado pelo agente.
+- O agente só encerra/reinicia processos que ele mesmo iniciou nesta sessão, e apenas com pedido explícito. Nunca mate processos do usuário nem containers que ele não tenha pedido para iniciar.
 - Frontend `.env`: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`.
 
 ## Verificação
