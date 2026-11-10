@@ -8,6 +8,7 @@
 [![React](https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Frontend CI](https://github.com/Gianneves/veltra-frontend/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/Gianneves/veltra-frontend/actions/workflows/frontend-ci.yml)
 
 </div>
 
@@ -117,6 +118,13 @@ npm start
 | `npm run build` | Build de produção |
 | `npm start` | Servidor de produção (após o build) |
 | `npx tsc --noEmit` | Checagem de tipos (o projeto não possui ESLint configurado) |
+
+## CI/CD
+
+- Pipeline do GitHub Actions em `.github/workflows/frontend-ci.yml`.
+- Roda em `push`/`pull_request` para `main` (e manualmente) com Node 20: `npm ci`, `npx tsc --noEmit` e `npm run build`.
+- O job roda em runner efêmero, sem dev server e sem os containers locais de desenvolvimento.
+- O deploy automático ainda não está configurado; depende da definição do alvo de hospedagem.
 
 ## Estrutura do projeto
 
