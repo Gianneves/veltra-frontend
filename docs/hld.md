@@ -302,7 +302,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 4. **Descanso**: sessões `rest` nunca são marcadas como concluídas e têm distância/pace zerados.
 5. **Próximo treino**: ignora `rest`, usa `dayOrder` (Seg=0 … Dom=6) e busca a semana seguinte se necessário.
 6. **Semana atual**: `analytics/weekly` considera segunda a domingo no horário local.
-7. **IA não aplica mudanças**: propostas só viram alteração após validação e ação do atleta.
+7. **IA não aplica mudanças**: propostas só viram alteração após validação e ação do atleta. "Mudança de plano" é alterar distância, pace, dia, tipo ou conclusão de uma sessão; anotação gerada por IA (foco do plano, notas e dicas do coach) é conteúdo derivado e não conta como mudança — ver [ADR-0002](./adr/0002-ai-annotations-are-not-plan-changes.md).
 8. **Segurança por idade**: limites de distância, volume e qualidade são aplicados no servidor.
 9. **Contrato de API**: banco/API em `snake_case`; frontend tipado em `camelCase`.
 10. **IDs**: novas entidades usam UUID v7 gerado no `@BeforeInsert`.
