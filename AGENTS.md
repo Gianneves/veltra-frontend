@@ -17,7 +17,7 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 - `docs/roadmap.md` é dono da lista de funcionalidades, da numeração global (`F01`), da ordem, das dependências e do status. Nenhum outro documento mantém essa lista.
 - `docs/product-brief.md` é dono do escopo, do público, das métricas e dos requisitos não funcionais do produto; `GLOSSARY.md` é dono do vocabulário; `docs/design-system.md`, dos tokens e componentes; `docs/adr/` guarda o porquê das decisões difíceis de reverter.
 - PRD e spec são escritos pelas skills `prd` e `to-spec`; a quebra em tarefas, pela `to-tasks`; o plano, pela `plan-task`. Uma decisão errada já commitada é corrigida na spec, no LLD ou numa tarefa nova, nunca reescrevendo um plano congelado.
-- Pasta e arquivos usam dois dígitos e kebab-case sem acento (`01-login-com-strava`); o número da funcionalidade e o da tarefa não mudam depois de atribuídos.
+- Pasta e arquivos usam dois dígitos e kebab-case sem acento, com título e pasta da funcionalidade em inglês (`01-login-with-strava`); o número da funcionalidade e o da tarefa não mudam depois de atribuídos. O conteúdo dos documentos é em pt-BR.
 - Feature nebulosa — sem quem usa, dor e fora de escopo claros — não vira PRD: grille antes com `/grill-with-docs`, que também escreve ADR e glossário.
 
 ## Ambiente e servidores
@@ -36,7 +36,7 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 - Frontend: `npx tsc --noEmit`. Não use `npm run lint` (sem ESLint configurado; `next lint` é interativo).
 - Frontend: nunca rode `next build` no diretório real com o dev server ativo (sobrescreve `.next`). Para validar build, copie para `/tmp/opencode` com `node_modules` simbólico.
 - Backend: `npx jest <paths>` (só o tocado), `npx eslint <paths>` e `npm run build`; `npm test` apenas quando necessário.
-- Falhas pré-existentes de DI no backend: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec` (baseline ~4 suítes). Não corrigir sem pedido explícito.
+- Falhas pré-existentes de DI no backend: `auth.service.spec`, `auth.controller.spec`, `users.service.spec` (baseline de 3 suítes; `insights.service.spec` já passa). Não corrigir sem pedido explícito.
 - Há WIP não commitado do usuário: nunca reverter alterações não relacionadas às suas mudanças.
 
 ## Backend (NestJS)
@@ -69,7 +69,7 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
   - `.github/workflows/frontend-ci.yml` no repo `veltra-frontend`.
   - `veltra-backend/.github/workflows/backend-ci.yml` no repo próprio do backend.
 - Frontend no CI: `npm ci`, `npx tsc --noEmit` e `npm run build` em runner efêmero. Não rode `next build` localmente com o dev server ativo; no CI não há dev server.
-- Backend no CI: `npm ci`, lint apenas dos arquivos TS alterados (o baseline atual tem erros de lint pré-existentes), `npm run build` e `npx jest` ignorando as 4 suítes de DI conhecidas. `npm test` completo só quando justificável.
+- Backend no CI: `npm ci`, lint apenas dos arquivos TS alterados (o baseline atual tem erros de lint pré-existentes), `npm run build` e `npx jest` ignorando as 3 suítes de DI conhecidas. `npm test` completo só quando justificável.
 - Não iniciar `npm run dev` em CI. Postgres/Redis, quando necessários, devem ser efêmeros (services do CI), nunca os containers locais do usuário.
 - Segredos de CI/CD vêm de secrets/variáveis do provedor. Nunca hardcode `OPENAI_API_KEY`, `STRAVA_CLIENT_SECRET`, `SECRET_KEY_JWT` etc.
 - Deploy não pode usar `DB_SYNCHRONIZE=1`; produção deve usar migrations. O CD/deploy automático ainda depende da definição do alvo de hospedagem.

@@ -51,7 +51,7 @@ Convenções de caminho:
 ## 2. Convenções transversais
 
 | Tema | Regra |
-|---|---|
+| --- | --- |
 | Linguagem | TypeScript estrito. |
 | UI | Textos em pt-BR; componentes client-side. |
 | Banco/API | Colunas e JSON em `snake_case`; frontend consome `camelCase`. |
@@ -99,7 +99,7 @@ Ordem de configuração:
 ### 3.3 Variáveis de ambiente do backend
 
 | Variável | Uso |
-|---|---|
+| --- | --- |
 | `PORT` | Porta HTTP (padrão de código 3000; exemplo 3001). |
 | `FRONTEND_URL` | CORS e redirect pós-login. |
 | `NODE_ENV` | Cookies seguros/Swagger. |
@@ -107,13 +107,13 @@ Ordem de configuração:
 | `REDIS_HOST`, `REDIS_PORT` | Conexão Redis. |
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | OAuth e API Strava. |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN`, `STRAVA_WEBHOOK_CALLBACK_URL` | Assinatura e verificação do webhook. |
-| `SECRET_KEY_JWT` | Assinatura do JWT (`insecure-dev-secret` como fallback). |
+| `SECRET_KEY_JWT` | Assinatura do JWT; ausente do `.env.example`, cai em `insecure-dev-secret`. |
 | `OPENAI_API_KEY` | IA e embeddings. |
 | `OPENAI_MODEL_ROUTING` | `auto` (padrão), `cheap` ou `premium`; modo de seleção de modelo. |
 | `OPENAI_MODEL_CHEAP` | Modelo do tier barato (padrão `gpt-4o-mini`). |
 | `OPENAI_MODEL_PREMIUM` | Modelo do tier premium (padrão `gpt-4o`). |
 | `OPENAI_MODEL_ESCALATION` | `false` desliga o retry no premium quando o parsing falha (padrão ligado). |
-| `ENCRYPTION_KEY` | Presente no `.env` de exemplo, mas **sem uso no código atual**. |
+| `ENCRYPTION_KEY` | Existe só no `.env` local (não versionado), **ausente do `.env.example`** e **sem uso no código atual**. |
 
 ---
 
@@ -124,7 +124,7 @@ Ordem de configuração:
 #### `users`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `stravaId` | int unique | Identificador do atleta no Strava. |
 | `name` | varchar | Nome completo. |
@@ -140,7 +140,7 @@ Relação: `users 1:N activities`.
 #### `activities`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `activityStravaId` | bigint unique | ID da atividade no Strava. |
 | `elapsed_time`, `moving_time` | int | Segundos. |
@@ -162,7 +162,7 @@ Relação: `activities 1:N insights`; `activities 1:0..1 training_sessions`.
 #### `insights`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `activityId` | uuid | Índice único (`@Index(['activityId'], { unique: true })`). |
 | `content` | text | JSON serializado do insight. |
@@ -174,7 +174,7 @@ FK `activityId` → `activities.id` com `ON DELETE CASCADE`.
 #### `goals`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `userId` | uuid | Escopo do atleta (sem FK explícita). |
 | `title`, `discipline` | varchar | Prova e disciplina. |
@@ -196,7 +196,7 @@ Relação: `goals 1:N milestones` (cascade).
 #### `milestones`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `goalId` | FK goals | `ON DELETE CASCADE`. |
 | `description` | varchar | 25%, 50%, 75%. |
@@ -207,7 +207,7 @@ Relação: `goals 1:N milestones` (cascade).
 #### `training_plans`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `userId` | uuid | Escopo do atleta (sem FK explícita). |
 | `weekStart` | varchar | ISO da segunda-feira. |
@@ -225,7 +225,7 @@ Relação: `training_plans 1:N training_sessions` (cascade).
 #### `training_sessions`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `planId` | FK training_plans | `ON DELETE CASCADE`. |
 | `day` | varchar | `Dom`…`Sáb`. |
@@ -248,7 +248,7 @@ Relação: `training_plans 1:N training_sessions` (cascade).
 #### `coach_conversations`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `userId` | uuid | Escopo do atleta. |
 | `title` | varchar nullable | Título automático. |
@@ -257,7 +257,7 @@ Relação: `training_plans 1:N training_sessions` (cascade).
 #### `coach_messages`
 
 | Coluna | Tipo | Observação |
-|---|---|---|
+| --- | --- | --- |
 | `id` | uuid PK | UUID v7. |
 | `conversationId` | FK coach_conversations | `ON DELETE CASCADE`. |
 | `role` | varchar | `user` ou `coach`. |
@@ -321,7 +321,7 @@ Arquivo: `src/auth/auth.service.ts`.
 ### 5.4 `AuthController`
 
 | Rota | Comportamento |
-|---|---|
+| --- | --- |
 | `GET /auth/strava/connect` | Redireciona ao Strava. |
 | `GET /auth/strava/callback` | Grava cookies `user_session` e `veltra_auth` e redireciona ao frontend. |
 | `GET /auth/me` | Resolve o usuário e retorna dados básicos. |
@@ -337,7 +337,7 @@ Opções de cookie:
 ### 5.5 `UsersService` / `UsersController`
 
 | Rota | Comportamento |
-|---|---|
+| --- | --- |
 | `GET /users/me` | Retorna perfil com `healthConsent: !!healthConsentAt`. |
 | `PATCH /users/me` | Atualiza `birthDate` e `healthConsent`. |
 
@@ -361,7 +361,7 @@ Regras de `updateProfile`:
 ### 6.1 Endpoints
 
 | Rota | Serviço | Regras |
-|---|---|---|
+| --- | --- | --- |
 | `POST /activities` | `create` | Usuário da sessão; erro se `activityStravaId` já existe. |
 | `GET /activities` | `findAll` | `page` (padrão 1), `limit` (padrão 20), `period` (`week`, `month`, `year`, `all`), `year` (`YYYY`). |
 | `GET /activities/years` | `findYears` | `EXTRACT(YEAR)` distinto, decrescente. |
@@ -402,7 +402,7 @@ Regras de `updateProfile`:
 ### 7.1 `StravaService`
 
 | Método | Integração |
-|---|---|
+| --- | --- |
 | `exchangeCodeForTokens(code)` | `POST https://www.strava.com/oauth/token` (`authorization_code`). |
 | `refreshAccessToken(refreshToken)` | `POST /oauth/token` (`refresh_token`). |
 | `fetchActivityById(id, token)` | `GET /api/v3/activities/:id`; retorna `null` em 404. |
@@ -465,7 +465,7 @@ Arquivo principal: `src/training-plans/training-plans.service.ts` (~2 mil linhas
 ### 8.1 Endpoints
 
 | Rota | Serviço |
-|---|---|
+| --- | --- |
 | `GET /training-plans/current` | Plano da semana atual (segunda local). |
 | `GET /training-plans` | Todos os planos do usuário. |
 | `GET /training-plans/pattern` | Padrão de treino do atleta. |
@@ -559,7 +559,7 @@ Passos:
 Tabelas de pico semanal (`peakWeeklyVolume`):
 
 | Nível | 5 km | 10 km | 21,1 km | 42,2 km |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | beginner | 18 | 25 | 35 | 45 |
 | novice | 22 | 30 | 40 | 55 |
 | intermediate | 25 | 35 | 50 | 65 |
@@ -568,7 +568,7 @@ Tabelas de pico semanal (`peakWeeklyVolume`):
 Tetos de longão (`longRunCap`):
 
 | Nível | 5 km | 10 km | 21,1 km | 42,2 km |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | beginner | 8 | 12 | 15 | 25 |
 | novice | 10 | 14 | 18 | 28 |
 | intermediate | 12 | 16 | 21 | 32 |
@@ -660,7 +660,8 @@ Cálculo:
 2. Aceita de 1 a 7 itens; valida que todas as sessões pertencem ao plano.
 3. Valida política de idade para cada item com distância.
 4. Simula o estado final de dias e rejeita qualquer duplicata (incluindo sessões fora do lote).
-5. Aplica tudo em transação; se qualquer item falhar, nada é salvo.
+5. Aplica tudo em transação; se qualquer item falhar, nada é salvo. Item convertido em `rest`
+   recebe a mesma limpeza do individual.
 
 ### 8.9 Pareamento de atividades
 
@@ -811,7 +812,7 @@ grava o vínculo — repete a guarda antes de qualquer escrita.
 `assessAdherence`:
 
 | Distância | Pace | Veredito |
-|---|---|---|
+| --- | --- | --- |
 | ≤ 10% | ≤ 5% | `no_plano` |
 | ≤ 20% | ≤ 10% | `proximo` |
 | acima | acima | `diferente` |
@@ -837,7 +838,7 @@ Arquivo: `src/coach/coach.service.ts`.
 ### 11.2 Endpoints
 
 | Rota | Comportamento |
-|---|---|
+| --- | --- |
 | `GET /coach/chat` | Sem `conversationId` lista conversas; com ID retorna mensagens. |
 | `POST /coach/chat` | Resposta completa (sem streaming). |
 | `DELETE /coach/chat` | Apaga todas as conversas e mensagens do usuário. |
@@ -897,7 +898,7 @@ o backend faz uma segunda chamada pedindo **somente** o bloco `<proposta>`, sem 
 Códigos de rejeição:
 
 | Código | Motivo |
-|---|---|
+| --- | --- |
 | `INVALID_SESSION` | Sessão não está entre as futuras listadas ou não pertence ao usuário. |
 | `PAST_OR_REST` | Sessão já passou. |
 | `OUT_OF_RANGE` | Distância/pace fora dos limites. |
@@ -932,7 +933,7 @@ No frontend, `streamCoachMessage` lê o body via `ReadableStream`, separa frames
 Arquivos: `src/ai/ai.service.ts` (prompts, parsing e chamadas) e `src/ai/model-router.ts` (seleção de modelo).
 
 | Função | Tarefa | Tier padrão | Temperatura | Timeout | Max tokens |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | `createEmbedding` | — | `text-embedding-3-small` | — | não explícito | — |
 | `generateInsight` | `generic` | cheap | 0 | não explícito | 700 |
 | `generateCoachReplyStream` | `coach_reply` | auto (cheap/premium) | 0.3 | 60 s | 1.400 |
@@ -961,7 +962,7 @@ Sem `OPENAI_API_KEY`, as funções retornam `null` (e o fluxo segue sem IA).
 ### 12.2 Onde o custo é consumido
 
 | Fluxo | Frequência | Chamadas |
-|---|---|---|
+| --- | --- | --- |
 | Ingestão/resync de atividade | Por atividade nova | 1 embedding + 1 insight (se ainda não houver insight `completed`) |
 | Geração/regeneração de plano | Por meta/plano | 1 análise de plano (premium) + enriquecimento das sessões |
 | Chat do coach | Por mensagem | 1 resposta (+ eventual retry de proposta ou fallback premium) |
@@ -986,7 +987,7 @@ Arquivo: `src/health/age-policy.ts`.
 ### 13.1 Regras de distância por idade
 
 | Faixa | Distância | Idade mínima | Liberação médica abaixo de |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | até 5 km | 0–5 km | 12 | 14 |
 | 5–10 km | 5–10 km | 14 | 16 |
 | 10–21,1 km | 10–21,1 km | 16 | 18 |
@@ -995,7 +996,7 @@ Arquivo: `src/health/age-policy.ts`.
 ### 13.2 Ajustes de plano
 
 | Idade | Ajuste |
-|---|---|
+| --- | --- |
 | ≤ 13 | Longão ≤ 6 km, volume ≤ 20 km/semana, 1 estímulo forte. |
 | 14–15 | Longão ≤ 8 km, volume ≤ 25 km/semana, 1 estímulo forte. |
 | 16–17 | Longão ≤ 10 km, volume ≤ 35 km/semana, 1 estímulo forte. |
@@ -1006,7 +1007,7 @@ Arquivo: `src/health/age-policy.ts`.
 `GET /health/alerts` analisa até 180 dias e retorna alertas ordenados por severidade (`medical` → `attention` → `info`):
 
 | Alerta | Regra |
-|---|---|
+| --- | --- |
 | Distância por idade | Corridas nos últimos 30 dias acima do permitido para a idade (até 2 alertas). |
 | Aumento brusco de volume | Semana atual ≥ 10 km e > 30% acima da média das até 4 semanas anteriores. |
 | Salto no longão | Maior corrida dos últimos 7 dias ≥ 8 km e > 15% acima da maior das 3 semanas anteriores. |
@@ -1048,7 +1049,7 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 ### 15.1 Troféus
 
 | Troféu | Critério |
-|---|---|
+| --- | --- |
 | Primeiro Passo | Primeira corrida. |
 | Centenário | 100 km acumulados. |
 | Maratonista | Corrida ≥ 42,195 km. |
@@ -1073,7 +1074,7 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 ## 16. Redis e processamento assíncrono
 
 | Chave | Conteúdo | TTL |
-|---|---|---|
+| --- | --- | --- |
 | `app:session:<sessionId>` | `userId` | 7 dias |
 | `strava:token:<userId>` | access token | até expiração − 60 s |
 | `strava:refresh:<userId>` | lock de refresh | 30 s |
@@ -1163,7 +1164,7 @@ Constantes visuais:
 ### 17.6 Páginas e dados
 
 | Página | Fontes de dados |
-|---|---|
+| --- | --- |
 | Dashboard | `getActivities`, `getTrainingPlan`, `getPlanByWeek`, `getWeeklyStats`, `getHealthOverview`. |
 | Plano | `getAllPlans`, `regeneratePlan`, `updateSession`, `linkSessionActivity`, `getHealthPolicy`. |
 | Atividades | `getActivitiesPaginated`, `getActivityYears`. |
@@ -1183,7 +1184,7 @@ Constantes visuais:
 ### 18.1 Frontend
 
 | Comando | Uso |
-|---|---|
+| --- | --- |
 | `npm run dev` | Dev server (o usuário mantém rodando; não iniciar/encerrar). |
 | `npx tsc --noEmit` | Typecheck. |
 | `npm run build` | Build de produção (nunca no diretório real com dev server ativo). |
@@ -1194,7 +1195,7 @@ Constantes visuais:
 ### 18.2 Backend
 
 | Comando | Uso |
-|---|---|
+| --- | --- |
 | `npm test` | Jest completo. |
 | `npx jest <paths>` | Apenas os specs tocados. |
 | `npx eslint <paths>` | Lint dos arquivos alterados. |
@@ -1211,9 +1212,9 @@ Falhas pré-existentes conhecidas (DI incompleta):
 - `auth.service.spec`
 - `auth.controller.spec`
 - `users.service.spec`
-- `insights.service.spec`
 
-Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
+Baseline: 3 suítes falhando. `insights.service.spec` já passa e por isso saiu da lista. Não
+corrigir sem pedido explícito.
 
 ### 18.3 Testes existentes
 
@@ -1244,7 +1245,7 @@ Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
   1. `npm ci`.
   2. Lint incremental: descobre os arquivos `src/**/*.ts` e `test/**/*.ts` alterados via `git diff` contra a base do PR (ou o commit anterior no push) e roda `npx eslint` apenas neles. Se não houver base de diff, o lint é ignorado.
   3. `npm run build`.
-  4. `npx jest --runInBand` ignorando as 4 suítes de DI conhecidas (`auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec`).
+  4. `npx jest --runInBand` ignorando as 3 suítes de DI conhecidas (`auth.service.spec`, `auth.controller.spec`, `users.service.spec`).
 - Concorrência por ref com `cancel-in-progress: true`.
 
 #### Regras de CI/CD
@@ -1305,9 +1306,9 @@ Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).
 - **Eventos falhos**: ficam em `strava:events:failed` sem painel/retry automático.
 - **Consentimento de saúde**: as políticas de idade são aplicadas mesmo sem consentimento registrado.
-- **`ENCRYPTION_KEY`**: variável presente no exemplo, sem uso no código.
+- **`ENCRYPTION_KEY`**: variável existente só no `.env` local (ausente do `.env.example`), sem uso no código.
 - **Observabilidade**: apenas logs de erro; sem métricas ou tracing.
-- **Testes do backend**: baseline com 4 suítes falhando por DI; o CI as ignora até serem corrigidas.
+- **Testes do backend**: baseline com 3 suítes falhando por DI (`insights.service.spec` já passa); o CI as ignora até serem corrigidas.
 - **Lint do backend**: baseline com erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados.
 - **Lint do frontend**: não configurado.
 - **CD/deploy**: o CI existe, mas não há deploy automático nem migrations versionadas.

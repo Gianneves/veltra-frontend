@@ -302,7 +302,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 4. **Descanso**: sessões `rest` nunca são marcadas como concluídas e têm distância/pace zerados.
 5. **Próximo treino**: ignora `rest`, usa `dayOrder` (Seg=0 … Dom=6) e busca a semana seguinte se necessário.
 6. **Semana atual**: `analytics/weekly` considera segunda a domingo no horário local.
-7. **IA não aplica mudanças**: propostas só viram alteração após validação e ação do atleta.
+7. **IA não aplica mudanças**: propostas só viram alteração após validação e ação do atleta. "Mudança de plano" é alterar distância, pace, dia, tipo ou conclusão de uma sessão; anotação gerada por IA (foco do plano, notas e dicas do coach) é conteúdo derivado e não conta como mudança — ver [ADR-0002](./adr/0002-ai-annotations-are-not-plan-changes.md).
 8. **Segurança por idade**: limites de distância, volume e qualidade são aplicados no servidor.
 9. **Contrato de API**: banco/API em `snake_case`; frontend tipado em `camelCase`.
 10. **IDs**: novas entidades usam UUID v7 gerado no `@BeforeInsert`.
@@ -344,7 +344,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 
 - GitHub Actions por repositório:
   - `veltra-frontend`: `.github/workflows/frontend-ci.yml` executa `npm ci`, `npx tsc --noEmit` e `npm run build` em Node 20.
-  - `veltra-backend`: `.github/workflows/backend-ci.yml` executa `npm ci`, lint incremental dos arquivos TS alterados, `npm run build` e Jest (ignorando as 4 suítes de DI conhecidas) em Node 20.
+  - `veltra-backend`: `.github/workflows/backend-ci.yml` executa `npm ci`, lint incremental dos arquivos TS alterados, `npm run build` e Jest (ignorando as 3 suítes de DI conhecidas) em Node 20.
 - Pipelines rodam em runner efêmero, sem `npm run dev` e sem os containers locais do usuário.
 - O deploy/CD automático ainda depende da definição do alvo de hospedagem e de migrations; produção não pode usar `DB_SYNCHRONIZE=1`.
 
@@ -363,7 +363,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 | Gráficos de Análises | Distância semanal, evolução de ritmo e zonas de FC usam dados estáticos de demonstração; apenas a elevação total é calculada das atividades. |
 | Busca semântica | O embedding só é gerado no cadastro manual da atividade (`POST /activities`); importações via webhook/resync usam `upsert` e não geram embedding. Não há endpoint de busca por similaridade. |
 | Dimensão do embedding | O modelo `text-embedding-3-small` gera 1536 dimensões; a entidade declara `vector` com `length: 1563` (inconsistência a revisar). |
-| Testes do backend | Quatro suítes têm falha pré-existente de DI: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec`. |
+| Testes do backend | Três suítes têm falha pré-existente de DI: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`. `insights.service.spec` já passa. |
 | Lint do frontend | Não há configuração de ESLint; `npm run lint` (`next lint`) fica interativo. |
 | Lint do backend | O baseline tem erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados. |
 | CD/deploy | CI existe, mas o deploy automático ainda depende do alvo de hospedagem e de migrations. |
