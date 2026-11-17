@@ -107,13 +107,13 @@ Ordem de configuração:
 | `REDIS_HOST`, `REDIS_PORT` | Conexão Redis. |
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | OAuth e API Strava. |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN`, `STRAVA_WEBHOOK_CALLBACK_URL` | Assinatura e verificação do webhook. |
-| `SECRET_KEY_JWT` | Assinatura do JWT (`insecure-dev-secret` como fallback). |
+| `SECRET_KEY_JWT` | Assinatura do JWT; ausente do `.env.example`, cai em `insecure-dev-secret`. |
 | `OPENAI_API_KEY` | IA e embeddings. |
 | `OPENAI_MODEL_ROUTING` | `auto` (padrão), `cheap` ou `premium`; modo de seleção de modelo. |
 | `OPENAI_MODEL_CHEAP` | Modelo do tier barato (padrão `gpt-4o-mini`). |
 | `OPENAI_MODEL_PREMIUM` | Modelo do tier premium (padrão `gpt-4o`). |
 | `OPENAI_MODEL_ESCALATION` | `false` desliga o retry no premium quando o parsing falha (padrão ligado). |
-| `ENCRYPTION_KEY` | Presente no `.env` de exemplo, mas **sem uso no código atual**. |
+| `ENCRYPTION_KEY` | Existe só no `.env` local (não versionado), **ausente do `.env.example`** e **sem uso no código atual**. |
 
 ---
 
@@ -1211,9 +1211,9 @@ Falhas pré-existentes conhecidas (DI incompleta):
 - `auth.service.spec`
 - `auth.controller.spec`
 - `users.service.spec`
-- `insights.service.spec`
 
-Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
+Baseline: 3 suítes falhando. `insights.service.spec` já passa e por isso saiu da lista. Não
+corrigir sem pedido explícito.
 
 ### 18.3 Testes existentes
 
@@ -1244,7 +1244,7 @@ Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
   1. `npm ci`.
   2. Lint incremental: descobre os arquivos `src/**/*.ts` e `test/**/*.ts` alterados via `git diff` contra a base do PR (ou o commit anterior no push) e roda `npx eslint` apenas neles. Se não houver base de diff, o lint é ignorado.
   3. `npm run build`.
-  4. `npx jest --runInBand` ignorando as 4 suítes de DI conhecidas (`auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec`).
+  4. `npx jest --runInBand` ignorando as 3 suítes de DI conhecidas (`auth.service.spec`, `auth.controller.spec`, `users.service.spec`).
 - Concorrência por ref com `cancel-in-progress: true`.
 
 #### Regras de CI/CD
@@ -1305,9 +1305,9 @@ Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).
 - **Eventos falhos**: ficam em `strava:events:failed` sem painel/retry automático.
 - **Consentimento de saúde**: as políticas de idade são aplicadas mesmo sem consentimento registrado.
-- **`ENCRYPTION_KEY`**: variável presente no exemplo, sem uso no código.
+- **`ENCRYPTION_KEY`**: variável existente só no `.env` local (ausente do `.env.example`), sem uso no código.
 - **Observabilidade**: apenas logs de erro; sem métricas ou tracing.
-- **Testes do backend**: baseline com 4 suítes falhando por DI; o CI as ignora até serem corrigidas.
+- **Testes do backend**: baseline com 3 suítes falhando por DI (`insights.service.spec` já passa); o CI as ignora até serem corrigidas.
 - **Lint do backend**: baseline com erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados.
 - **Lint do frontend**: não configurado.
 - **CD/deploy**: o CI existe, mas não há deploy automático nem migrations versionadas.

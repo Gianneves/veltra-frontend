@@ -36,7 +36,7 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 - Frontend: `npx tsc --noEmit`. Não use `npm run lint` (sem ESLint configurado; `next lint` é interativo).
 - Frontend: nunca rode `next build` no diretório real com o dev server ativo (sobrescreve `.next`). Para validar build, copie para `/tmp/opencode` com `node_modules` simbólico.
 - Backend: `npx jest <paths>` (só o tocado), `npx eslint <paths>` e `npm run build`; `npm test` apenas quando necessário.
-- Falhas pré-existentes de DI no backend: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec` (baseline ~4 suítes). Não corrigir sem pedido explícito.
+- Falhas pré-existentes de DI no backend: `auth.service.spec`, `auth.controller.spec`, `users.service.spec` (baseline de 3 suítes; `insights.service.spec` já passa). Não corrigir sem pedido explícito.
 - Há WIP não commitado do usuário: nunca reverter alterações não relacionadas às suas mudanças.
 
 ## Backend (NestJS)
@@ -69,7 +69,7 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
   - `.github/workflows/frontend-ci.yml` no repo `veltra-frontend`.
   - `veltra-backend/.github/workflows/backend-ci.yml` no repo próprio do backend.
 - Frontend no CI: `npm ci`, `npx tsc --noEmit` e `npm run build` em runner efêmero. Não rode `next build` localmente com o dev server ativo; no CI não há dev server.
-- Backend no CI: `npm ci`, lint apenas dos arquivos TS alterados (o baseline atual tem erros de lint pré-existentes), `npm run build` e `npx jest` ignorando as 4 suítes de DI conhecidas. `npm test` completo só quando justificável.
+- Backend no CI: `npm ci`, lint apenas dos arquivos TS alterados (o baseline atual tem erros de lint pré-existentes), `npm run build` e `npx jest` ignorando as 3 suítes de DI conhecidas. `npm test` completo só quando justificável.
 - Não iniciar `npm run dev` em CI. Postgres/Redis, quando necessários, devem ser efêmeros (services do CI), nunca os containers locais do usuário.
 - Segredos de CI/CD vêm de secrets/variáveis do provedor. Nunca hardcode `OPENAI_API_KEY`, `STRAVA_CLIENT_SECRET`, `SECRET_KEY_JWT` etc.
 - Deploy não pode usar `DB_SYNCHRONIZE=1`; produção deve usar migrations. O CD/deploy automático ainda depende da definição do alvo de hospedagem.

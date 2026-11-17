@@ -344,7 +344,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 
 - GitHub Actions por repositório:
   - `veltra-frontend`: `.github/workflows/frontend-ci.yml` executa `npm ci`, `npx tsc --noEmit` e `npm run build` em Node 20.
-  - `veltra-backend`: `.github/workflows/backend-ci.yml` executa `npm ci`, lint incremental dos arquivos TS alterados, `npm run build` e Jest (ignorando as 4 suítes de DI conhecidas) em Node 20.
+  - `veltra-backend`: `.github/workflows/backend-ci.yml` executa `npm ci`, lint incremental dos arquivos TS alterados, `npm run build` e Jest (ignorando as 3 suítes de DI conhecidas) em Node 20.
 - Pipelines rodam em runner efêmero, sem `npm run dev` e sem os containers locais do usuário.
 - O deploy/CD automático ainda depende da definição do alvo de hospedagem e de migrations; produção não pode usar `DB_SYNCHRONIZE=1`.
 
@@ -363,7 +363,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 | Gráficos de Análises | Distância semanal, evolução de ritmo e zonas de FC usam dados estáticos de demonstração; apenas a elevação total é calculada das atividades. |
 | Busca semântica | O embedding só é gerado no cadastro manual da atividade (`POST /activities`); importações via webhook/resync usam `upsert` e não geram embedding. Não há endpoint de busca por similaridade. |
 | Dimensão do embedding | O modelo `text-embedding-3-small` gera 1536 dimensões; a entidade declara `vector` com `length: 1563` (inconsistência a revisar). |
-| Testes do backend | Quatro suítes têm falha pré-existente de DI: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`, `insights.service.spec`. |
+| Testes do backend | Três suítes têm falha pré-existente de DI: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`. `insights.service.spec` já passa. |
 | Lint do frontend | Não há configuração de ESLint; `npm run lint` (`next lint`) fica interativo. |
 | Lint do backend | O baseline tem erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados. |
 | CD/deploy | CI existe, mas o deploy automático ainda depende do alvo de hospedagem e de migrations. |
