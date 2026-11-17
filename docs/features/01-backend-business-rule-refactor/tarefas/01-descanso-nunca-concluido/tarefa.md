@@ -1,6 +1,6 @@
 # 01: Descanso nunca concluído
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** em qualquer caminho, uma sessão de descanso aparece sem conclusão, com distância e pace zerados e sem atividade vinculada; converter uma sessão concluída em descanso desfaz o pareamento, e planos antigos já gravados são normalizados na leitura. O total planejado da semana passa a ser calculado por um único helper, em metros.
 
@@ -14,9 +14,9 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · Converter uma sessão concluída em descanso deixa `completed = false`, `activityId` nulo, realizados nulos, distância e pace zero, e a sessão deixa de contar como treino feito.
-- [ ] **CA2** · Converter uma sessão de descanso em treino devolve a sessão ao estado planejado, sem conclusão.
-- [ ] **CA3** · Vincular uma atividade a uma sessão de descanso é recusado com `REST_SESSION` e nada é alterado; o pareamento automático continua ignorando descanso.
-- [ ] **CA4** · Planos antigos com descanso concluído saem da leitura normalizados: descanso sem conclusão, com distância/pace zero e realizados nulos.
-- [ ] **CA5** · `plannedWeeklyKm` devolvido por `findCurrent`/`findAll`/`findByWeek` é igual à soma das distâncias planejadas das sessões não-descanso, em metros.
-- [ ] **CA6** · `npx jest` nos specs tocados, `npx eslint` nos arquivos alterados e `npm run build` passam.
+- [x] **CA1** · Converter uma sessão concluída em descanso deixa `completed = false`, `activityId` nulo, realizados nulos, distância e pace zero, e a sessão deixa de contar como treino feito.
+- [x] **CA2** · Converter uma sessão de descanso em treino devolve a sessão ao estado planejado, sem conclusão.
+- [x] **CA3** · Vincular uma atividade a uma sessão de descanso é recusado com `REST_SESSION` e nada é alterado; o pareamento automático continua ignorando descanso.
+- [x] **CA4** · Planos antigos com descanso concluído saem da leitura normalizados: descanso sem conclusão, com distância/pace zero e realizados nulos.
+- [x] **CA5** · `plannedWeeklyKm` devolvido por `findCurrent`/`findAll`/`findByWeek` é igual à soma das distâncias planejadas das sessões não-descanso, em metros.
+- [x] **CA6** · `npx jest` nos specs tocados, `npx eslint` nos arquivos alterados e `npm run build` passam.
