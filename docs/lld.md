@@ -1,6 +1,6 @@
 # LLD — Veltra (Low-Level Design)
 
-> **Última atualização:** 10/11/2026
+> **Última atualização:** 17/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento de contexto:** [HLD](./hld.md)
 > **Fonte de verdade:** este documento descreve a implementação **as-built**. Divergências entre código e documento devem ser resolvidas na mesma tarefa.
@@ -13,14 +13,21 @@
 Veltra/
 ├── AGENTS.md
 ├── README.md
+├── GLOSSARY.md
 ├── docs/
 │   ├── hld.md
-│   └── lld.md
+│   ├── lld.md
+│   ├── roadmap.md
+│   ├── product-brief.md
+│   ├── design-system.md
+│   ├── adr/                     # ADRs numeradas
+│   └── features/                # PRD, spec e tarefas por funcionalidade
 ├── .github/workflows/
 │   └── frontend-ci.yml
-├── .opencode/commands/
-│   ├── hld.md
-│   └── lld.md
+├── .opencode/
+│   ├── commands/                # prd, to-spec, to-tasks, plan-task, implement, hld, lld
+│   ├── rules/                   # backend, frontend, testes
+│   └── plan-task/formats/       # moldes de plano e de contrato
 ├── veltra-frontend/
 │   ├── src/app/                 # App Router
 │   ├── src/components/          # layout + design system
