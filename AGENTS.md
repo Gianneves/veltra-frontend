@@ -11,6 +11,15 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 - Se código e documento divergirem, trate o código como estado real, confirme o comportamento e corrija o documento — sem “corrigir” o código por conta própria quando a divergência não for o objetivo da tarefa.
 - Use `/hld` e `/lld` para revisar/atualizar os documentos. Mudanças nesses arquivos também entram no resumo final.
 
+## Planejamento
+
+- A cadeia é PRD → spec → tarefas → plano de tarefa → implementação. Cada etapa tem um dono, dentro de `docs/features/<NN>-<titulo>/`: `prd.md`, `spec.md`, `tarefas/<NN>-<titulo>/tarefa.md` e o plano da tarefa.
+- `docs/roadmap.md` é dono da lista de funcionalidades, da numeração global (`F01`), da ordem, das dependências e do status. Nenhum outro documento mantém essa lista.
+- `docs/product-brief.md` é dono do escopo, do público, das métricas e dos requisitos não funcionais do produto; `GLOSSARY.md` é dono do vocabulário; `docs/design-system.md`, dos tokens e componentes; `docs/adr/` guarda o porquê das decisões difíceis de reverter.
+- PRD e spec são escritos pelas skills `prd` e `to-spec`; a quebra em tarefas, pela `to-tasks`; o plano, pela `plan-task`. Uma decisão errada já commitada é corrigida na spec, no LLD ou numa tarefa nova, nunca reescrevendo um plano congelado.
+- Pasta e arquivos usam dois dígitos e kebab-case sem acento (`01-login-com-strava`); o número da funcionalidade e o da tarefa não mudam depois de atribuídos.
+- Feature nebulosa — sem quem usa, dor e fora de escopo claros — não vira PRD: grille antes com `/grill-with-docs`, que também escreve ADR e glossário.
+
 ## Ambiente e servidores
 
 - Padrão: o usuário é dono dos processos nas portas 3000/3001 e dos containers `veltra_db`/`veltra_cache`. O agente não inicia, reinicia, encerra nem mata nada por conta própria.
