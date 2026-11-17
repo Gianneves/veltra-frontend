@@ -660,7 +660,8 @@ Cálculo:
 2. Aceita de 1 a 7 itens; valida que todas as sessões pertencem ao plano.
 3. Valida política de idade para cada item com distância.
 4. Simula o estado final de dias e rejeita qualquer duplicata (incluindo sessões fora do lote).
-5. Aplica tudo em transação; se qualquer item falhar, nada é salvo.
+5. Aplica tudo em transação; se qualquer item falhar, nada é salvo. Item convertido em `rest`
+   recebe a mesma limpeza do individual.
 
 ### 8.9 Pareamento de atividades
 
