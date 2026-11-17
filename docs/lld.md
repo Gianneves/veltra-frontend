@@ -1,6 +1,6 @@
 # LLD — Veltra (Low-Level Design)
 
-> **Última atualização:** 10/11/2026
+> **Última atualização:** 17/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento de contexto:** [HLD](./hld.md)
 > **Fonte de verdade:** este documento descreve a implementação **as-built**. Divergências entre código e documento devem ser resolvidas na mesma tarefa.
@@ -13,14 +13,21 @@
 Veltra/
 ├── AGENTS.md
 ├── README.md
+├── GLOSSARY.md
 ├── docs/
 │   ├── hld.md
-│   └── lld.md
+│   ├── lld.md
+│   ├── roadmap.md
+│   ├── product-brief.md
+│   ├── design-system.md
+│   ├── adr/                     # ADRs numeradas
+│   └── features/                # PRD, spec e tarefas por funcionalidade
 ├── .github/workflows/
 │   └── frontend-ci.yml
-├── .opencode/commands/
-│   ├── hld.md
-│   └── lld.md
+├── .opencode/
+│   ├── commands/                # prd, to-spec, to-tasks, plan-task, implement, hld, lld
+│   ├── rules/                   # backend, frontend, testes
+│   └── plan-task/formats/       # moldes de plano e de contrato
 ├── veltra-frontend/
 │   ├── src/app/                 # App Router
 │   ├── src/components/          # layout + design system
@@ -207,7 +214,7 @@ Relação: `goals 1:N milestones` (cascade).
 | `goalId` | uuid nullable | Meta que originou o plano. |
 | `focus` | varchar nullable | Foco preenchido pela IA. |
 | `coachNotes` | text nullable | Notas do plano. |
-| `plannedWeeklyKm` | double precision nullable | Soma das sessões não-descanso. |
+| `plannedWeeklyKm` | double precision nullable | Volume planejado da semana, em metros (nome legado): soma das distâncias planejadas das sessões não-descanso. Recalculado em edição e no ajuste de volume; normalizado na leitura. |
 | `volumeAdjusted` | boolean default false | Ajuste automático aplicado. |
 | `volumeAdjustedReason` | varchar nullable | Motivo. |
 | `volumeAdjustedAt` | timestamptz nullable | Quando. |
@@ -229,8 +236,8 @@ Relação: `training_plans 1:N training_sessions` (cascade).
 | `notes` | varchar nullable | Descrição do treino. |
 | `adjusted` | boolean default false | Ajuste de volume. |
 | `adjustmentNote` | varchar nullable | Motivo do ajuste. |
-| `completed` | boolean default false | Vínculo com atividade. |
-| `activityId` | uuid nullable | FK activities `ON DELETE SET NULL`. |
+| `completed` | boolean default false | Vínculo com atividade; nunca verdadeiro em sessão `rest`. |
+| `activityId` | uuid nullable | FK activities `ON DELETE SET NULL`; nunca preenchido em sessão `rest`. |
 | `actualDistance` | double precision nullable | Metros. |
 | `actualPace` | double precision nullable | Segundos/km. |
 | `actualMovingTime` | int nullable | Segundos. |
@@ -264,6 +271,8 @@ Relação: `training_plans 1:N training_sessions` (cascade).
 - `goals.userId`, `training_plans.userId` e `coach_conversations.userId` são colunas UUID sem `@ManyToOne`; o filtro é feito na query.
 - `activities.userId` e `training_sessions.activityId` usam `@JoinColumn`, então o nome físico da coluna é `userId`/`activityId`.
 - A coluna `embedding` declara `length: 1563`, mas o modelo `text-embedding-3-small` gera 1536 dimensões. Tratar como dívida técnica.
+- `plannedWeeklyKm` é o volume planejado da semana em **metros**, apesar do nome; é derivado das sessões não-descanso, recalculado em edição e no ajuste de volume e normalizado na leitura.
+- Sessão `rest` nunca é concluída nem recebe vínculo; distância e pace planejados são zero. Planos antigos com descanso concluído ou vinculado são normalizados apenas na leitura: o banco continua com o estado antigo e não há script nem migration.
 
 ---
 
@@ -466,6 +475,13 @@ Arquivo principal: `src/training-plans/training-plans.service.ts` (~2 mil linhas
 | `PUT /training-plans/:planId/sessions/:sessionId/activity` | Vínculo manual. |
 | `PUT /training-plans/:planId/sessions/:sessionId` | Edição de uma sessão. |
 
+Leitura: `findCurrent`, `findAll` e `findByWeek` normalizam sessão de descanso (nunca concluída,
+distância/pace zero, realizados nulos) e devolvem `plannedWeeklyKm` como a soma das distâncias
+planejadas das sessões não-descanso, em metros; a normalização não grava no banco.
+
+`PUT /training-plans/:planId/sessions/:sessionId/activity` recusa vínculo de atividade com sessão de
+descanso com `400` e `code: "REST_SESSION"`; desvincular continua permitido.
+
 ### 8.2 Geração do plano
 
 `regenerateForUser`:
@@ -632,7 +648,10 @@ Cálculo:
    - `planAgeAdjustment` (teto de longão).
    - Bloqueia com `{ code: "AGE_POLICY", ... }` se exceder e `acknowledgeAgePolicy` não vier.
 4. Se mudar o dia, rejeita se o dia já tiver outra sessão no plano (`DAY_COLLISION`).
-5. Aplica mudanças; se `type === "rest"`, zera distância/pace.
+5. Aplica mudanças; se `type === "rest"`, zera distância/pace e limpa `completed`, `activityId`,
+   `actualDistance`, `actualPace`, `actualMovingTime`, `matchScore`, `matchMethod` e `matchedAt`.
+   Converter descanso em treino apenas repõe os campos enviados: o descanso não carrega conclusão
+   nem realizados.
 6. Salva.
 
 `updateSessionsBatch`:
@@ -646,6 +665,10 @@ Cálculo:
 ### 8.9 Pareamento de atividades
 
 `ActivityMatcherService`:
+
+Vínculo manual (`linkActivityToSession`): sessão `rest` com `activityId` não nulo é recusada com
+`REST_SESSION` e nada é alterado; `activityId: null` continua permitido. `linkSession` — o ponto que
+grava o vínculo — repete a guarda antes de qualquer escrita.
 
 1. Ignora se houver vínculo manual.
 2. Remove vínculos automáticos anteriores da atividade.
@@ -1290,6 +1313,8 @@ Baseline: ~4 suítes falhando. Não corrigir sem pedido explícito.
 - **CD/deploy**: o CI existe, mas não há deploy automático nem migrations versionadas.
 - **Código de erro no frontend**: o client HTTP não lê o body de erro, então `code` (ex.: `AGE_POLICY`, `DAY_COLLISION`) não chega às telas.
 - **`GET /analytics/weekly`**: não filtra por tipo de atividade, embora a UI trate como corrida.
+- **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
+- **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
 
 ---
 
