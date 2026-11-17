@@ -17,7 +17,7 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 - `docs/roadmap.md` é dono da lista de funcionalidades, da numeração global (`F01`), da ordem, das dependências e do status. Nenhum outro documento mantém essa lista.
 - `docs/product-brief.md` é dono do escopo, do público, das métricas e dos requisitos não funcionais do produto; `GLOSSARY.md` é dono do vocabulário; `docs/design-system.md`, dos tokens e componentes; `docs/adr/` guarda o porquê das decisões difíceis de reverter.
 - PRD e spec são escritos pelas skills `prd` e `to-spec`; a quebra em tarefas, pela `to-tasks`; o plano, pela `plan-task`. Uma decisão errada já commitada é corrigida na spec, no LLD ou numa tarefa nova, nunca reescrevendo um plano congelado.
-- Pasta e arquivos usam dois dígitos e kebab-case sem acento (`01-login-com-strava`); o número da funcionalidade e o da tarefa não mudam depois de atribuídos.
+- Pasta e arquivos usam dois dígitos e kebab-case sem acento, com título e pasta da funcionalidade em inglês (`01-login-with-strava`); o número da funcionalidade e o da tarefa não mudam depois de atribuídos. O conteúdo dos documentos é em pt-BR.
 - Feature nebulosa — sem quem usa, dor e fora de escopo claros — não vira PRD: grille antes com `/grill-with-docs`, que também escreve ADR e glossário.
 
 ## Ambiente e servidores
