@@ -9,7 +9,7 @@
 
 | Nº | Funcionalidade | Status | Depende de | PRD | Spec |
 |---|---|---|---|---|---|
-| `F01` | Backend business-rule refactor | `spec pronta` | — | [PRD](./features/01-backend-business-rule-refactor/prd.md) | [Spec](./features/01-backend-business-rule-refactor/spec.md) |
+| `F01` | Backend business-rule refactor | `em andamento` | — | [PRD](./features/01-backend-business-rule-refactor/prd.md) | [Spec](./features/01-backend-business-rule-refactor/spec.md) |
 
 ---
 

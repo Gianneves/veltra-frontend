@@ -1,6 +1,6 @@
 # 01: Descanso nunca concluído
 
-**Status:** a fazer
+**Status:** em andamento
 
 **Objetivo:** em qualquer caminho, uma sessão de descanso aparece sem conclusão, com distância e pace zerados e sem atividade vinculada; converter uma sessão concluída em descanso desfaz o pareamento, e planos antigos já gravados são normalizados na leitura. O total planejado da semana passa a ser calculado por um único helper, em metros.
 
