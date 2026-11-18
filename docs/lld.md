@@ -640,29 +640,44 @@ Cálculo:
 
 ### 8.8 Edição de sessão
 
+As duas rotas de edição rodam em uma transação que trava a linha de `training_plans`
+(`pessimistic_write`) antes de ler as sessões; a ordem de aquisição é sempre plano → sessões, para
+não criar deadlock. Duas edições concorrentes no mesmo plano são serializadas: a segunda enxerga o
+estado da primeira. A trava é carregada sem `relations`, porque o Postgres não aplica `FOR UPDATE`
+ao lado anulável de um `LEFT JOIN`; as sessões são lidas em seguida, dentro da mesma transação.
+
 `updateSession`:
 
-1. Busca plano por `{ id: planId, userId }`.
-2. Busca sessão por `{ id: sessionId, planId }`.
-3. Se `plannedDistance > 0`, aplica política de idade:
-   - `assessDistanceForAge`.
-   - `planAgeAdjustment` (teto de longão).
-   - Bloqueia com `{ code: "AGE_POLICY", ... }` se exceder e `acknowledgeAgePolicy` não vier.
-4. Se mudar o dia, rejeita se o dia já tiver outra sessão no plano (`DAY_COLLISION`).
+1. Trava o plano por `{ id: planId, userId }`; plano inexistente devolve `null`.
+2. Lê as sessões do plano e busca a sessão por `{ id: sessionId, planId }`; sessão inexistente
+   devolve `null`.
+3. Simula o estado final do plano com as mudanças do corpo.
+4. Valida, nesta ordem:
+   - distância por idade, quando o estado final da sessão tem `plannedDistance > 0`:
+     `assessDistanceForAge` e `planAgeAdjustment` (teto de longão) bloqueiam com
+     `{ code: "AGE_POLICY", ... }` se excederem e `acknowledgeAgePolicy` não vier;
+   - dia único, quando o corpo traz `day` e o dia já tem outra sessão no estado final
+     (`DAY_COLLISION`);
+   - volume semanal e qualidade, sobre o estado final, por `assessWeekForAge` (§13.2): bloqueiam com
+     `{ code: "AGE_POLICY", message }` mesmo com `acknowledgeAgePolicy`.
 5. Aplica mudanças; se `type === "rest"`, zera distância/pace e limpa `completed`, `activityId`,
    `actualDistance`, `actualPace`, `actualMovingTime`, `matchScore`, `matchMethod` e `matchedAt`.
    Converter descanso em treino apenas repõe os campos enviados: o descanso não carrega conclusão
    nem realizados.
-6. Salva.
+6. Salva as sessões e grava `plannedWeeklyKm` com a soma das distâncias planejadas das sessões
+   não-descanso do estado final, em metros.
 
 `updateSessionsBatch`:
 
-1. Plano escopado por usuário.
+1. Mesma transação e mesma trava do individual; plano escopado por usuário.
 2. Aceita de 1 a 7 itens; valida que todas as sessões pertencem ao plano.
-3. Valida política de idade para cada item com distância.
-4. Simula o estado final de dias e rejeita qualquer duplicata (incluindo sessões fora do lote).
-5. Aplica tudo em transação; se qualquer item falhar, nada é salvo. Item convertido em `rest`
-   recebe a mesma limpeza do individual.
+3. Simula o estado final com os itens.
+4. Valida a distância por idade de cada item com distância, o dia único sobre o estado final inteiro
+   (incluindo sessões fora do lote) e, por fim, volume e qualidade do estado final, na mesma ordem e
+   com as mesmas recusas do individual.
+5. Aplica tudo; se qualquer item falhar, nada é salvo. Item convertido em `rest` recebe a mesma
+   limpeza do individual.
+6. Grava `plannedWeeklyKm` do estado final.
 
 ### 8.9 Pareamento de atividades
 
@@ -708,6 +723,8 @@ grava o vínculo — repete a guarda antes de qualquer escrita.
   - qualidade: até 10% de corte;
   - demais: mínimo 3 km.
 - Marca sessões com `adjusted` e `adjustmentNote`; marca o plano com `volumeAdjusted`, motivo e data.
+- Depois do corte, grava `plannedWeeklyKm` com a soma das distâncias planejadas das sessões
+  não-descanso do plano ajustado, em metros.
 
 ### 8.11 Perfil do atleta
 
@@ -1002,6 +1019,14 @@ Arquivo: `src/health/age-policy.ts`.
 | 14–15 | Longão ≤ 8 km, volume ≤ 25 km/semana, 1 estímulo forte. |
 | 16–17 | Longão ≤ 10 km, volume ≤ 35 km/semana, 1 estímulo forte. |
 | ≥ 60 | Volume × 0,9, no máximo 2 estímulos fortes. |
+
+Na geração, os ajustes acima valem sobre a semana planejada. Na edição (`LLD §8.8`) valem apenas os
+limites **absolutos**, no estado final da semana: `maxWeeklyKm` (faixas até 17 anos) e
+`maxQualitySessions` (até 17 anos e 60+). O volume é a soma das distâncias planejadas das sessões
+não-descanso; a qualidade conta as sessões `interval`, `tempo` e `fartlek`. O `volumeFactor` de 60+
+continua sendo aplicado só na geração: a edição não inventa um teto relativo. `acknowledgeAgePolicy`
+cobre apenas a distância por sessão; volume e qualidade são recusados mesmo com a ciência. Sem
+`birthDate`, nenhum limite de idade é aplicado.
 
 ### 13.3 Alertas
 
@@ -1317,6 +1342,9 @@ corrigir sem pedido explícito.
 - **`GET /analytics/weekly`**: não filtra por tipo de atividade, embora a UI trate como corrida.
 - **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
 - **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
+- **Trava só nas rotas de edição**: `PUT .../sessions/:sessionId` e `PUT .../sessions/batch` travam a linha do plano; geração, pareamento e ajuste de volume não travam, então uma geração concorrente com uma edição pode sobrescrever a semana em edição.
+- **Sem índice único de dia**: a garantia de dia único na edição é da validação no estado final dentro da transação; o armazenamento continua sem restrição, e a garantia de banco segue com a feature de migrations.
+- **Ordem de trava no ajuste de volume**: o ajuste grava as sessões antes de atualizar o plano, ao contrário da edição (plano → sessões); uma edição concorrente com o pareamento da mesma sessão pode, em tese, ser abortada pelo Postgres por deadlock, sem deixar dado inconsistente.
 
 ---
 

@@ -1,6 +1,6 @@
 # 02: Limites de idade na edição
 
-**Status:** a fazer
+**Status:** em andamento
 
 **Objetivo:** editar uma sessão ou a semana inteira aplica os mesmos limites de idade da geração — distância por sessão, volume semanal e quantidade de qualidade — no estado final, dentro de uma transação que trava o plano; o total planejado é recalculado depois de cada edição aceita e depois do ajuste de volume.
 
