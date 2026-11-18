@@ -1164,7 +1164,7 @@ Módulos por domínio:
 
 - `activities.ts`, `training.ts`, `insights.ts`, `coach.ts`, `achievements.ts`, `analytics.ts`, `goals.ts`, `health.ts`, `users.ts`, `auth.ts`.
 - Muitos métodos capturam erro e retornam `null`/`[]` para simplificar estados de página.
-- `training.ts`: `updateSession`, `applySessionChange` e `applySessionsBatch` devolvem `{ ok, status?, code?, message? }`, com a mensagem do servidor quando o corpo a traz; o fallback por status vale só quando não há corpo JSON.
+- `training.ts`: `updateSession`, `applySessionChange` e `applySessionsBatch` devolvem `{ ok, status?, code?, message? }`, com a mensagem do servidor quando o corpo do erro traz `code` (erro de regra); o fallback por status vale quando o corpo não é JSON ou não traz `code`.
 
 ### 17.4 Chat do coach
 
