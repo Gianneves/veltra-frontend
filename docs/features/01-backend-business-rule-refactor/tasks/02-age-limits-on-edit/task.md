@@ -1,6 +1,6 @@
 # 02: Limites de idade na edição
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** editar uma sessão ou a semana inteira aplica os mesmos limites de idade da geração — distância por sessão, volume semanal e quantidade de qualidade — no estado final, dentro de uma transação que trava o plano; o total planejado é recalculado depois de cada edição aceita e depois do ajuste de volume.
 
@@ -16,12 +16,12 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · Editar a distância de uma sessão de modo que o volume da semana passe de `maxWeeklyKm` é recusado com `AGE_POLICY` e a mensagem em pt-BR cita volume e limite; nada é gravado.
-- [ ] **CA2** · Editar a semana de modo que a contagem de `interval`, `tempo` e `fartlek` passe de `maxQualitySessions` é recusado com `AGE_POLICY` e a mensagem cita qualidade e limite; nada é gravado.
-- [ ] **CA3** · `acknowledgeAgePolicy` continua aceitando apenas a distância acima do limite; volume e qualidade continuam recusados mesmo com a ciência.
-- [ ] **CA4** · O lote continua atômico e o swap de dias válido continua passando; o dia único é verificado no estado final, incluindo sessões fora do lote.
-- [ ] **CA5** · Duas edições concorrentes no mesmo plano não deixam duas sessões no mesmo dia; a segunda enxerga o estado da primeira.
-- [ ] **CA6** · `plannedWeeklyKm` é recalculado após edição individual, após lote e após o ajuste de volume por excesso.
-- [ ] **CA7** · Sem `birthDate`, nenhum limite de idade é aplicado, como hoje.
-- [ ] **CA8** · A avaliação pura de volume/qualidade tem teste em `age-policy.spec.ts`; o service e o lote provam a recusa no estado final.
-- [ ] **CA9** · `npx jest` nos specs tocados, `npx eslint` nos arquivos alterados e `npm run build` passam.
+- [x] **CA1** · Editar a distância de uma sessão de modo que o volume da semana passe de `maxWeeklyKm` é recusado com `AGE_POLICY` e a mensagem em pt-BR cita volume e limite; nada é gravado.
+- [x] **CA2** · Editar a semana de modo que a contagem de `interval`, `tempo` e `fartlek` passe de `maxQualitySessions` é recusado com `AGE_POLICY` e a mensagem cita qualidade e limite; nada é gravado.
+- [x] **CA3** · `acknowledgeAgePolicy` continua aceitando apenas a distância acima do limite; volume e qualidade continuam recusados mesmo com a ciência.
+- [x] **CA4** · O lote continua atômico e o swap de dias válido continua passando; o dia único é verificado no estado final, incluindo sessões fora do lote.
+- [x] **CA5** · Duas edições concorrentes no mesmo plano não deixam duas sessões no mesmo dia; a segunda enxerga o estado da primeira.
+- [x] **CA6** · `plannedWeeklyKm` é recalculado após edição individual, após lote e após o ajuste de volume por excesso.
+- [x] **CA7** · Sem `birthDate`, nenhum limite de idade é aplicado, como hoje.
+- [x] **CA8** · A avaliação pura de volume/qualidade tem teste em `age-policy.spec.ts`; o service e o lote provam a recusa no estado final.
+- [x] **CA9** · `npx jest` nos specs tocados, `npx eslint` nos arquivos alterados e `npm run build` passam.
