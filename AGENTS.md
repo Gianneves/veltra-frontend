@@ -13,11 +13,11 @@ Monorepo: `veltra-frontend` (Next.js 15, porta 3000) e `veltra-backend` (NestJS 
 
 ## Planejamento
 
-- A cadeia é PRD → spec → tarefas → plano de tarefa → implementação. Cada etapa tem um dono, dentro de `docs/features/<NN>-<titulo>/`: `prd.md`, `spec.md`, `tarefas/<NN>-<titulo>/tarefa.md` e o plano da tarefa.
+- A cadeia é PRD → spec → tarefas → plano de tarefa → implementação. Cada etapa tem um dono, dentro de `docs/features/<NN>-<titulo>/`: `prd.md`, `spec.md`, `tasks/<NN>-<titulo>/task.md` e o plano da tarefa.
 - `docs/roadmap.md` é dono da lista de funcionalidades, da numeração global (`F01`), da ordem, das dependências e do status. Nenhum outro documento mantém essa lista.
 - `docs/product-brief.md` é dono do escopo, do público, das métricas e dos requisitos não funcionais do produto; `GLOSSARY.md` é dono do vocabulário; `docs/design-system.md`, dos tokens e componentes; `docs/adr/` guarda o porquê das decisões difíceis de reverter.
 - PRD e spec são escritos pelas skills `prd` e `to-spec`; a quebra em tarefas, pela `to-tasks`; o plano, pela `plan-task`. Uma decisão errada já commitada é corrigida na spec, no LLD ou numa tarefa nova, nunca reescrevendo um plano congelado.
-- Pasta e arquivos usam dois dígitos e kebab-case sem acento, com título e pasta da funcionalidade em inglês (`01-login-with-strava`); o número da funcionalidade e o da tarefa não mudam depois de atribuídos. O conteúdo dos documentos é em pt-BR.
+- Pasta e arquivos usam dois dígitos e kebab-case sem acento, sempre em inglês: a funcionalidade (`01-login-with-strava`), a tarefa (`tasks/01-rest-never-completed/task.md`) e os arquivos (`prd.md`, `spec.md`, `task.md`, `plan.md`). O conteúdo dos documentos é em pt-BR. O número da funcionalidade e o da tarefa não mudam depois de atribuídos.
 - Feature nebulosa — sem quem usa, dor e fora de escopo claros — não vira PRD: grille antes com `/grill-with-docs`, que também escreve ADR e glossário.
 
 ## Ambiente e servidores

@@ -4,7 +4,7 @@ description: "Implementa uma tarefa a partir do commit de plano dela: tdd com os
 
 ---
 
-Implemente uma tarefa, nesta sessão e nesta branch. A tarefa é o `tarefa.md` que o usuário indica no prompt, pelo caminho ou pelo par funcionalidade e tarefa (como `F01-T02`). Se a indicação for ambígua, pergunte.
+Implemente uma tarefa, nesta sessão e nesta branch. A tarefa é o `task.md` que o usuário indica no prompt, pelo caminho ou pelo par funcionalidade e tarefa (como `F01-T02`). Se a indicação for ambígua, pergunte.
 
 ## Passos
 
@@ -28,7 +28,7 @@ Implemente uma tarefa, nesta sessão e nesta branch. A tarefa é o `tarefa.md` q
 
 7. **Atualizar os registros.** Num commit:
    - quando a tarefa entregou um item que o LLD ou o HLD marcam como planejado, ou mudou algo que eles registram, carregue a skill `lld` ou `hld` no modo atualizar;
-   - no `tarefa.md`, marque as caixas dos critérios e mude o Status para "concluída": o merge do PR é o que conclui a tarefa;
+   - no `task.md`, marque as caixas dos critérios e mude o Status para "concluída": o merge do PR é o que conclui a tarefa;
    - se esta é a última tarefa da funcionalidade ainda não concluída, passe a funcionalidade a "concluída" no `docs/roadmap.md`.
 
 8. **Verificar.** Rode a verificação completa uma vez, em segundo plano, e nunca num subagente: o subagente fica com os testes do que mudou, e a verificação completa é de quem fecha a tarefa. Se ela levar a correções, faça o commit delas e rode de novo.

@@ -1,12 +1,12 @@
 ---
-description: "Decompõe uma funcionalidade em tarefas tracer bullet, com bloqueios e decisões compartilhadas, e cria um tarefa.md por tarefa"
+description: "Decompõe uma funcionalidade em tarefas tracer bullet, com bloqueios e decisões compartilhadas, e cria um task.md por tarefa"
 ---
 
 # To Tasks
 
 Quebre uma funcionalidade em **tarefas**: fatias verticais tracer bullet, cada uma declarando as
 tarefas que a **bloqueiam**. Cada tarefa vira um arquivo em
-`docs/features/<NN>-<titulo>/tarefas/<NN>-<titulo>/tarefa.md`.
+`docs/features/<NN>-<titulo>/tasks/<NN>-<titulo>/task.md`.
 
 O tracker é o `docs/roadmap.md`; não há issue tracker. A tarefa nasce com `Status: a fazer` e só
 muda de status na implementação. Não use rótulo de triagem: o status do roadmap e o status da
@@ -101,10 +101,12 @@ a possui e bloqueia a outra.
 
 ### 5. Criar os arquivos das tarefas
 
-Depois da aprovação, crie `docs/features/<NN>-<titulo>/tarefas/<NN>-<titulo>/tarefa.md`, um arquivo
+Depois da aprovação, crie `docs/features/<NN>-<titulo>/tasks/<NN>-<titulo>/task.md`, um arquivo
 por tarefa, numerados a partir de `01` na ordem de dependência (as que bloqueiam primeiro). Use o
 molde abaixo.
 
+- A pasta e o arquivo são em inglês, em kebab-case sem acento e com o mesmo título da tarefa
+  (`tasks/01-rest-never-completed/task.md`); o conteúdo permanece em pt-BR.
 - O número da tarefa não muda depois de atribuído, e o número de uma tarefa removida não é
   reaproveitado.
 - Uma tarefa cujo plano já está em commit não muda: uma decisão errada é corrigida na spec, no LLD
@@ -113,7 +115,7 @@ molde abaixo.
 - Ao final, registre na seção "Decomposição em tarefas" da `spec.md` a lista das tarefas criadas,
   com número, título, resultado e dependências.
 
-## Molde do `tarefa.md`
+## Molde do `task.md`
 
 ```markdown
 # <NN>: <Título da tarefa>
