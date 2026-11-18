@@ -12,6 +12,7 @@
 |---|---|---|
 | [`ADR-0001`](./0001-technical-enabler-with-frozen-contract.md) | Enabler técnico entregue como funcionalidade, com contrato congelado | `accepted` |
 | [`ADR-0002`](./0002-ai-annotations-are-not-plan-changes.md) | Anotação de IA não é mudança de plano | `accepted` |
+| [`ADR-0003`](./0003-ai-provider-behind-a-port.md) | Fornecedor de IA atrás de uma porta, com alternativa e fallback automático | `accepted` |
 
 ---
 

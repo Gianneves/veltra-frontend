@@ -113,6 +113,7 @@ Ordem de configuração:
 | `OPENAI_MODEL_CHEAP` | Modelo do tier barato (padrão `gpt-4o-mini`). |
 | `OPENAI_MODEL_PREMIUM` | Modelo do tier premium (padrão `gpt-4o`). |
 | `OPENAI_MODEL_ESCALATION` | `false` desliga o retry no premium quando o parsing falha (padrão ligado). |
+| `DEEPSEEK_API_KEY` | Fornecedor alternativo de IA da `F04`; existe no `.env` local e no `.env.example`, ainda sem uso no código. |
 | `ENCRYPTION_KEY` | Existe só no `.env` local (não versionado), **ausente do `.env.example`** e **sem uso no código atual**. |
 
 ---
@@ -372,13 +373,17 @@ Regras de `updateProfile`:
 ### 6.2 `ActivitiesService`
 
 - `create`:
-  - Verifica duplicidade por `activityStravaId` (sem escopo de usuário).
+  - Verifica duplicidade por `activityStravaId` (sem escopo de usuário, porque a coluna é única) e falha se já existir.
   - Salva a atividade.
   - Em background (`.catch`), gera embedding do texto e chama `insights.generateIfMissing`.
+- `findByStravaId(activityStravaId, userId)`:
+  - Filtra `{ activityStravaId, user: { id: userId } }`; é a única forma de resolver uma atividade vinda do Strava.
 - `upsert`:
-  - Se existir, atualiza campos básicos.
+  - Resolve a atividade pelo par `activityStravaId` + dono (`user.id`).
+  - Se existir para o dono, atualiza campos básicos.
   - Campos que só vêm do detalhe (`laps`, `average_heartrate`, `max_heartrate`, `max_watts`) só são sobrescritos quando não são `null/undefined`.
-  - Se não existir, cria sem gerar IA (`generateAI = false`).
+  - Se não existir para o dono mas o `activityStravaId` pertencer a outro atleta (coluna única), não grava nada e devolve `null`; quem chama interrompe o fluxo daquela atividade.
+  - Se não existir em lugar nenhum, cria sem gerar IA (`generateAI = false`).
 - `findOneForUser`:
   - UUID → filtra `{ id, user: { id: userId } }`.
   - Caso contrário → `{ activityStravaId: Number(id), user: { id: userId } }`.
@@ -432,7 +437,8 @@ Constantes:
 - `MAX_ATTEMPTS = 3`
 - `WORKER_INTERVAL_MS = 1500`
 - `BATCH_SIZE = 10`
-- `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]`
+
+A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook e pelo backfill da geração de plano (LLD §8.2). A análise semanal (F01-T04) passará a reutilizá-la.
 
 Fluxo:
 
@@ -443,9 +449,10 @@ Fluxo:
 5. Cada item é processado com até 3 tentativas e backoff linear (`1s × tentativa`).
 6. Falha final vai para a lista de falhas.
 7. `handleEvent`:
+   - Resolve o atleta por `owner_id` (`users.stravaId`) e encerra se ele não existir.
    - `athlete` + `authorized=false` → limpa tokens.
-   - `activity` + `delete` → desvincula sessões e remove atividade.
-   - `activity` + create/update → busca detalhe, ignora não-corridas, faz upsert, respeita vínculo manual, tenta parear e gera insight.
+   - `activity` + `delete` → resolve a atividade por `activityStravaId` + dono, desvincula apenas as sessões do plano daquele atleta, remove a atividade; evento de outro dono não desvincula nem apaga.
+   - `activity` + create/update → busca detalhe, faz upsert com o dono, respeita vínculo manual, tenta parear e gera insight. Atividade que deixou de ser corrida só é desvinculada e removida se for do dono do evento; evento cujo dono diverge da atividade gravada não altera nada.
 
 ### 7.4 Resync e subscriptions
 
@@ -454,6 +461,7 @@ Fluxo:
   - Busca todas as atividades e filtra por `start_date >= cutoff`.
   - Para cada uma, tenta buscar detalhe somente se `has_heartrate`; caso contrário, usa o summary.
   - Faz upsert, tenta parear e gera insight se faltar.
+  - Atividade cujo `upsert` devolve `null` (o `activityStravaId` pertence a outro atleta) é pulada sem parear nem gerar insight.
 - `GET/POST/DELETE /strava/subscription` exigem sessão, mas operam a subscription global da aplicação.
 
 ---
@@ -639,29 +647,44 @@ Cálculo:
 
 ### 8.8 Edição de sessão
 
+As duas rotas de edição rodam em uma transação que trava a linha de `training_plans`
+(`pessimistic_write`) antes de ler as sessões; a ordem de aquisição é sempre plano → sessões, para
+não criar deadlock. Duas edições concorrentes no mesmo plano são serializadas: a segunda enxerga o
+estado da primeira. A trava é carregada sem `relations`, porque o Postgres não aplica `FOR UPDATE`
+ao lado anulável de um `LEFT JOIN`; as sessões são lidas em seguida, dentro da mesma transação.
+
 `updateSession`:
 
-1. Busca plano por `{ id: planId, userId }`.
-2. Busca sessão por `{ id: sessionId, planId }`.
-3. Se `plannedDistance > 0`, aplica política de idade:
-   - `assessDistanceForAge`.
-   - `planAgeAdjustment` (teto de longão).
-   - Bloqueia com `{ code: "AGE_POLICY", ... }` se exceder e `acknowledgeAgePolicy` não vier.
-4. Se mudar o dia, rejeita se o dia já tiver outra sessão no plano (`DAY_COLLISION`).
+1. Trava o plano por `{ id: planId, userId }`; plano inexistente devolve `null`.
+2. Lê as sessões do plano e busca a sessão por `{ id: sessionId, planId }`; sessão inexistente
+   devolve `null`.
+3. Simula o estado final do plano com as mudanças do corpo.
+4. Valida, nesta ordem:
+   - distância por idade, quando o corpo da edição traz `plannedDistance > 0`
+     (comportamento atual): `assessDistanceForAge` e `planAgeAdjustment` (teto de longão) bloqueiam com
+     `{ code: "AGE_POLICY", ... }` se excederem e `acknowledgeAgePolicy` não vier;
+   - dia único, quando o corpo traz `day` e o dia já tem outra sessão no estado final
+     (`DAY_COLLISION`);
+   - volume semanal e qualidade, sobre o estado final, por `assessWeekForAge` (§13.2): bloqueiam com
+     `{ code: "AGE_POLICY", message }` mesmo com `acknowledgeAgePolicy`.
 5. Aplica mudanças; se `type === "rest"`, zera distância/pace e limpa `completed`, `activityId`,
    `actualDistance`, `actualPace`, `actualMovingTime`, `matchScore`, `matchMethod` e `matchedAt`.
    Converter descanso em treino apenas repõe os campos enviados: o descanso não carrega conclusão
    nem realizados.
-6. Salva.
+6. Salva as sessões e grava `plannedWeeklyKm` com a soma das distâncias planejadas das sessões
+   não-descanso do estado final, em metros.
 
 `updateSessionsBatch`:
 
-1. Plano escopado por usuário.
+1. Mesma transação e mesma trava do individual; plano escopado por usuário.
 2. Aceita de 1 a 7 itens; valida que todas as sessões pertencem ao plano.
-3. Valida política de idade para cada item com distância.
-4. Simula o estado final de dias e rejeita qualquer duplicata (incluindo sessões fora do lote).
-5. Aplica tudo em transação; se qualquer item falhar, nada é salvo. Item convertido em `rest`
-   recebe a mesma limpeza do individual.
+3. Simula o estado final com os itens.
+4. Valida a distância por idade de cada item com distância, o dia único sobre o estado final inteiro
+   (incluindo sessões fora do lote) e, por fim, volume e qualidade do estado final, na mesma ordem e
+   com as mesmas recusas do individual.
+5. Aplica tudo; se qualquer item falhar, nada é salvo. Item convertido em `rest` recebe a mesma
+   limpeza do individual.
+6. Grava `plannedWeeklyKm` do estado final.
 
 ### 8.9 Pareamento de atividades
 
@@ -707,6 +730,8 @@ grava o vínculo — repete a guarda antes de qualquer escrita.
   - qualidade: até 10% de corte;
   - demais: mínimo 3 km.
 - Marca sessões com `adjusted` e `adjustmentNote`; marca o plano com `volumeAdjusted`, motivo e data.
+- Depois do corte, grava `plannedWeeklyKm` com a soma das distâncias planejadas das sessões
+  não-descanso do plano ajustado, em metros.
 
 ### 8.11 Perfil do atleta
 
@@ -1001,6 +1026,14 @@ Arquivo: `src/health/age-policy.ts`.
 | 14–15 | Longão ≤ 8 km, volume ≤ 25 km/semana, 1 estímulo forte. |
 | 16–17 | Longão ≤ 10 km, volume ≤ 35 km/semana, 1 estímulo forte. |
 | ≥ 60 | Volume × 0,9, no máximo 2 estímulos fortes. |
+
+Na geração, os ajustes acima valem sobre a semana planejada. Na edição (`LLD §8.8`) valem apenas os
+limites **absolutos**, no estado final da semana: `maxWeeklyKm` (faixas até 17 anos) e
+`maxQualitySessions` (até 17 anos e 60+). O volume é a soma das distâncias planejadas das sessões
+não-descanso; a qualidade conta as sessões `interval`, `tempo` e `fartlek`. O `volumeFactor` de 60+
+continua sendo aplicado só na geração: a edição não inventa um teto relativo. `acknowledgeAgePolicy`
+cobre apenas a distância por sessão; volume e qualidade são recusados mesmo com a ciência. Sem
+`birthDate`, nenhum limite de idade é aplicado.
 
 ### 13.3 Alertas
 
@@ -1305,6 +1338,8 @@ corrigir sem pedido explícito.
 - **Sincronização no login**: `UsersService.createOrUpdate` importa todo o histórico; em contas grandes pode demorar.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).
 - **Eventos falhos**: ficam em `strava:events:failed` sem painel/retry automático.
+- **Atividade de dono divergente**: um evento cujo `owner_id` não é o dono da atividade gravada é ignorado sem erro nem re-tentativa, porque `activities.activityStravaId` é único e o registro não pode ser reatribuído a outro atleta; o evento não aparece na lista de falhas.
+- **Atividade legada sem dono**: como `findByStravaId` e `upsert` resolvem pelo par `activityStravaId` + dono, uma atividade gravada sem `userId` (legado anterior ao escopo por usuário) fica invisível para a ingestão: não é atualizada nem apagada pelo webhook, e o ID bloqueia a criação de um registro novo por causa da coluna única. Não há script nem migration para reatribuí-la.
 - **Consentimento de saúde**: as políticas de idade são aplicadas mesmo sem consentimento registrado.
 - **`ENCRYPTION_KEY`**: variável existente só no `.env` local (ausente do `.env.example`), sem uso no código.
 - **Observabilidade**: apenas logs de erro; sem métricas ou tracing.
@@ -1316,6 +1351,9 @@ corrigir sem pedido explícito.
 - **`GET /analytics/weekly`**: não filtra por tipo de atividade, embora a UI trate como corrida.
 - **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
 - **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
+- **Trava só nas rotas de edição**: `PUT .../sessions/:sessionId` e `PUT .../sessions/batch` travam a linha do plano; geração, pareamento e ajuste de volume não travam, então uma geração concorrente com uma edição pode sobrescrever a semana em edição.
+- **Sem índice único de dia**: a garantia de dia único na edição é da validação no estado final dentro da transação; o armazenamento continua sem restrição, e a garantia de banco segue com a feature de migrations.
+- **Ordem de trava no ajuste de volume**: o ajuste grava as sessões antes de atualizar o plano, ao contrário da edição (plano → sessões); uma edição concorrente com o pareamento da mesma sessão pode, em tese, ser abortada pelo Postgres por deadlock, sem deixar dado inconsistente.
 
 ---
 

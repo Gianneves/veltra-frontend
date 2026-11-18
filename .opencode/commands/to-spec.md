@@ -99,7 +99,7 @@ com esta estrutura:
    real de estado (ex.: sessão planejada → concluída), nunca por padrão.
 8. **Decomposição em tarefas** — a lista das tarefas da funcionalidade, numeradas a partir de `01`
    na ordem de dependência, cada uma com título, resultado entregável e dependências. A quebra em
-   fatias, os bloqueios e os arquivos `tarefas/<NN>-<titulo>/tarefa.md` são da skill `to-tasks`,
+   fatias, os bloqueios e os arquivos `tasks/<NN>-<titulo>/task.md` são da skill `to-tasks`,
    que é dona do molde e da numeração; a spec registra o resultado.
 9. **Estratégia de teste** — o que será provado em teste de unidade, de integração e de ponta a
    ponta, seguindo as rules de `.opencode/rules/tests.md` e o `LLD §18 — Verificação, scripts e

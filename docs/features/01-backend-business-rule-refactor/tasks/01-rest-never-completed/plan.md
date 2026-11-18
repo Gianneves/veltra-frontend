@@ -1,6 +1,6 @@
 # Plano da F01-T01: Descanso nunca concluído
 
-Tarefa: [tarefa.md](tarefa.md) · Spec: [spec.md](../../spec.md) · PRD: [prd.md](../../prd.md)
+Tarefa: [task.md](task.md) · Spec: [spec.md](../../spec.md) · PRD: [prd.md](../../prd.md)
 
 ## Critérios
 

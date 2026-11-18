@@ -274,17 +274,17 @@ os realizados. Origem: `HLD §9`, item 4; `LLD §8.8`, `LLD §8.9`.
 
 ## 7. Decomposição em tarefas
 
-A quebra em fatias, os bloqueios e os arquivos `tarefas/<NN>-<titulo>/tarefa.md` são da skill
+A quebra em fatias, os bloqueios e os arquivos `tasks/<NN>-<titulo>/task.md` são da skill
 `to-tasks`; esta seção registra o resultado aprovado.
 
 | Nº | Tarefa | Resultado entregável | Depende de |
 |---|---|---|---|
-| `01` | [`descanso-nunca-concluido`](./tarefas/01-descanso-nunca-concluido/tarefa.md) | Descanso não conclui, não recebe atividade e é normalizado na leitura; helpers de estado e total planejado | — |
-| `02` | [`limites-de-idade-na-edicao`](./tarefas/02-limites-de-idade-na-edicao/tarefa.md) | Edição individual e em lote em transação com trava, limites de volume/qualidade e total recalculado | `01` |
-| `03` | [`ingestao-e-pareamento-por-dono`](./tarefas/03-ingestao-e-pareamento-por-dono/tarefa.md) | Webhook, upsert e desvínculo escopados pelo dono; constante de corrida compartilhada | — |
-| `04` | [`semana-atual-da-analise`](./tarefas/04-semana-atual-da-analise/tarefa.md) | `/analytics/weekly` seg–dom local, semiaberto e só corridas | `03` |
-| `05` | [`recusa-e-total-na-interface`](./tarefas/05-recusa-e-total-na-interface/tarefa.md) | Client propaga motivo; plano e dashboard exibem a recusa e o mesmo total planejado | `01`, `02` |
-| `06` | [`anotacao-de-ia-sem-mudanca-de-plano`](./tarefas/06-anotacao-de-ia-sem-mudanca-de-plano/tarefa.md) | Construtor puro de anotações e teste que prova que só foco, notas e dicas mudam | — |
+| `01` | [`rest-never-completed`](./tasks/01-rest-never-completed/task.md) | Descanso não conclui, não recebe atividade e é normalizado na leitura; helpers de estado e total planejado | — |
+| `02` | [`age-limits-on-edit`](./tasks/02-age-limits-on-edit/task.md) | Edição individual e em lote em transação com trava, limites de volume/qualidade e total recalculado | `01` |
+| `03` | [`ingestion-and-owner-matching`](./tasks/03-ingestion-and-owner-matching/task.md) | Webhook, upsert e desvínculo escopados pelo dono; constante de corrida compartilhada | — |
+| `04` | [`current-week-in-analytics`](./tasks/04-current-week-in-analytics/task.md) | `/analytics/weekly` seg–dom local, semiaberto e só corridas | `03` |
+| `05` | [`rejection-and-total-in-ui`](./tasks/05-rejection-and-total-in-ui/task.md) | Client propaga motivo; plano e dashboard exibem a recusa e o mesmo total planejado | `01`, `02` |
+| `06` | [`ai-annotation-without-plan-change`](./tasks/06-ai-annotation-without-plan-change/task.md) | Construtor puro de anotações e teste que prova que só foco, notas e dicas mudam | — |
 
 ---
 

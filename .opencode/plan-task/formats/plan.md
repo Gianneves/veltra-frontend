@@ -5,7 +5,7 @@ O plano tem as seções abaixo, nesta ordem. Uma seção sem conteúdo diz "Nenh
 ```markdown
 # Plano da F01-T02: <título da tarefa>
 
-Tarefa: [tarefa.md](tarefa.md) · Spec: [spec.md](../../spec.md) · PRD: [prd.md](../../prd.md)
+Tarefa: [task.md](task.md) · Spec: [spec.md](../../spec.md) · PRD: [prd.md](../../prd.md)
 
 ## Critérios
 
