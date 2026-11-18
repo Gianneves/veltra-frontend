@@ -82,6 +82,11 @@ _Avoid_: rotina, disponibilidade, agenda
 O tema que orienta uma semana do plano.
 _Avoid_: objetivo da semana, tema
 
+**Insight**:
+A leitura em linguagem de treino que o coach faz de uma atividade, no detalhe da corrida e no feed
+de insights.
+_Avoid_: análise, comentário, feedback
+
 ### Meta e progresso
 
 **Meta**:

@@ -113,6 +113,7 @@ Ordem de configuração:
 | `OPENAI_MODEL_CHEAP` | Modelo do tier barato (padrão `gpt-4o-mini`). |
 | `OPENAI_MODEL_PREMIUM` | Modelo do tier premium (padrão `gpt-4o`). |
 | `OPENAI_MODEL_ESCALATION` | `false` desliga o retry no premium quando o parsing falha (padrão ligado). |
+| `DEEPSEEK_API_KEY` | Fornecedor alternativo de IA da `F04`; existe no `.env` local e no `.env.example`, ainda sem uso no código. |
 | `ENCRYPTION_KEY` | Existe só no `.env` local (não versionado), **ausente do `.env.example`** e **sem uso no código atual**. |
 
 ---
