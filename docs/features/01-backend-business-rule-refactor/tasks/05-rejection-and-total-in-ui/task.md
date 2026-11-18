@@ -1,6 +1,6 @@
 # 05: Recusa e total na interface
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** quando o servidor recusa uma edição, a pessoa vê o motivo em pt-BR no próprio cartão da sessão ou da proposta; o plano e o dashboard mostram o mesmo total planejado da semana, com o realizado separado.
 
@@ -21,4 +21,4 @@
 - [x] **CA3** · O chat do coach exibe a mensagem real quando uma proposta é recusada ao aplicar, no lugar do texto genérico.
 - [x] **CA4** · O planejado do dashboard e o cabeçalho da semana do plano usam `plannedWeeklyKm` e exibem o mesmo valor; o realizado continua vindo de `/analytics/weekly` e rotulado como realizado.
 - [x] **CA5** · Nenhuma rota, campo, componente de `ui` ou item de sidebar novo é criado.
-- [ ] **CA6** · `npx tsc --noEmit` passa e o roteiro manual de tela da spec é executado.
+- [x] **CA6** · `npx tsc --noEmit` passa e o roteiro manual de tela da spec é executado.
