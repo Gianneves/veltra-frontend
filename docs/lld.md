@@ -490,6 +490,11 @@ planejadas das sessões não-descanso, em metros; a normalização não grava no
 `PUT /training-plans/:planId/sessions/:sessionId/activity` recusa vínculo de atividade com sessão de
 descanso com `400` e `code: "REST_SESSION"`; desvincular continua permitido.
 
+`PUT /training-plans/:planId/sessions/:sessionId` e `PUT /training-plans/:planId/sessions/batch`
+são parciais: campo omitido do corpo mantém o valor atual. O `ValidationPipe` com `whitelist`
+entrega os campos opcionais ausentes como `undefined`; o service ignora esses valores ao montar o
+estado final, para não apagar dia, tipo ou distância nem corromper `plannedWeeklyKm`.
+
 ### 8.2 Geração do plano
 
 `regenerateForUser`:

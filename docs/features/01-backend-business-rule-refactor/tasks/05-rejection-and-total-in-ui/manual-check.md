@@ -63,6 +63,11 @@ Durante a preparação apareceu um defeito no backend, anterior a esta tarefa e 
   `DAY_COLLISION` com "o dia undefined ficaria com duas sessões".
 
 As linhas do banco preservam os valores (`undefined` não é gravado), mas o total da semana e a
-validação de dia único usam o estado em memória corrompido. Não foi corrigido aqui: o backend está
-fora do escopo da F01-T05 e o defeito pertence às tarefas que implementaram a edição. Registrado
-para virar tarefa própria.
+validação de dia único usam o estado em memória corrompido.
+
+Corrigido nesta branch, a pedido, no repositório do backend (`05c4445`, branch
+`fix/partial-session-update`): `applySessionChanges` ignora os campos `undefined` ao montar o estado
+final, e dois specs novos cobrem a edição individual e o lote com campos omitidos. Revalidado na
+API em execução: `PUT` individual e em lote só com `plannedPace` devolvem `200`, mantêm dia, tipo e
+distância e deixam `plannedWeeklyKm` em 15.800 m. `docs/lld.md` §8.1 registra que as duas rotas são
+parciais.
