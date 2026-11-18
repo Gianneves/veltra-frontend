@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "./client";
+import { api, type ApiError } from "./client";
 import { mockTrainingPlan } from "./mock";
 import type { TrainingPattern, TrainingPlan, TrainingSession } from "./types";
 
@@ -124,15 +124,16 @@ export interface ApplySessionResult {
 }
 
 function sessionError(err: unknown, fallback: string): ApplySessionResult {
-  const record =
-    typeof err === "object" && err !== null
-      ? (err as Record<string, unknown>)
-      : null;
-  const status = Number(record?.status) || 0;
-  const code = typeof record?.code === "string" ? record.code : undefined;
+  const error = (typeof err === "object" && err !== null ? err : {}) as Partial<ApiError>;
+  const status = typeof error.status === "number" ? error.status : 0;
+  const code = typeof error.code === "string" ? error.code : undefined;
+  // Só o erro de regra (com code) traz mensagem em pt-BR; sem corpo JSON o client
+  // devolve o statusText, que não deve substituir o fallback por status.
   const serverMessage =
-    typeof record?.message === "string" && record.message.length > 0
-      ? record.message
+    code !== undefined &&
+    typeof error.message === "string" &&
+    error.message.length > 0
+      ? error.message
       : undefined;
 
   return {

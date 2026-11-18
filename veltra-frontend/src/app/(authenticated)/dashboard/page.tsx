@@ -217,8 +217,8 @@ export default function DashboardPage() {
                   />
                 </div>
                 <p className="font-geist text-[11px] text-on-surface-variant">
-                  {Math.round(weekProgress)}% do planejado &bull;{" "}
-                  {plannedWeekKm.toFixed(0)}km planejados
+                  {Math.round(weekProgress)}% do planejado &bull; meta de{" "}
+                  {plannedWeekKm.toFixed(0)}km
                 </p>
               </div>
             ) : (

@@ -189,6 +189,20 @@ function SessionCard({
   const hasActual =
     session.completed && session.actualDistance !== null && session.actualDistance !== undefined;
 
+  const saveEdit = async (
+    data: Parameters<typeof updateSession>[2],
+  ) => {
+    setEditError("");
+    const result = await updateSession(planId, session.id, data);
+    if (!result.ok) {
+      setEditError(
+        result.message ?? "Não foi possível aplicar a mudança. Tente novamente.",
+      );
+      return;
+    }
+    onUpdated();
+  };
+
   const handleSaveDistance = async (val: string) => {
     const meters = Math.round(parseFloat(val) * 1000);
     if (isNaN(meters)) return;
@@ -212,22 +226,7 @@ function SessionCard({
       return;
     }
 
-    await applyDistance(meters);
-  };
-
-  const applyDistance = async (meters: number, acknowledgeAgePolicy = false) => {
-    setEditError("");
-    const result = await updateSession(planId, session.id, {
-      plannedDistance: meters,
-      ...(acknowledgeAgePolicy ? { acknowledgeAgePolicy: true } : {}),
-    });
-    if (!result.ok) {
-      setEditError(
-        result.message ?? "Não foi possível aplicar a mudança. Tente novamente.",
-      );
-      return;
-    }
-    onUpdated();
+    await saveEdit({ plannedDistance: meters });
   };
 
   const handleConfirmDistance = async () => {
@@ -235,22 +234,14 @@ function SessionCard({
     const meters = pendingMeters;
     setConfirmOpen(false);
     setPendingMeters(null);
-    await applyDistance(meters, true);
+    await saveEdit({ plannedDistance: meters, acknowledgeAgePolicy: true });
   };
 
   const handleSavePace = async (val: string) => {
     const parts = val.split(":").map(Number);
     const seconds = parts[0] * 60 + (parts[1] || 0);
     if (isNaN(seconds)) return;
-    setEditError("");
-    const result = await updateSession(planId, session.id, { plannedPace: seconds });
-    if (!result.ok) {
-      setEditError(
-        result.message ?? "Não foi possível aplicar a mudança. Tente novamente.",
-      );
-      return;
-    }
-    onUpdated();
+    await saveEdit({ plannedPace: seconds });
   };
 
   return (
