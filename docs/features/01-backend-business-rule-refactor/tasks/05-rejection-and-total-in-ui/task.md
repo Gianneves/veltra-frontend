@@ -1,6 +1,6 @@
 # 05: Recusa e total na interface
 
-**Status:** a fazer
+**Status:** em andamento
 
 **Objetivo:** quando o servidor recusa uma edição, a pessoa vê o motivo em pt-BR no próprio cartão da sessão ou da proposta; o plano e o dashboard mostram o mesmo total planejado da semana, com o realizado separado.
 

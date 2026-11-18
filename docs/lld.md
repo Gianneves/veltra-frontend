@@ -58,7 +58,7 @@ Convenções de caminho:
 | IDs | UUID v7 gerado em `@BeforeInsert`. |
 | Datas | `timestamptz` no banco; strings ISO na API. |
 | Semana | Segunda a domingo, calculada em horário local do servidor. |
-| Erros de regra | `BadRequestException({ code, message, ... })` no backend. O client atual propaga apenas `status` e `message` — o `code` do body ainda não chega ao frontend. |
+| Erros de regra | `BadRequestException({ code, message, ... })` no backend. O client lê o corpo JSON do erro uma vez e propaga `{ status, message, code }`; sem corpo JSON, mantém `status` e `statusText`. |
 | Autenticação | `AuthSessionService.resolveUserId(req)` em toda rota autenticada. |
 | Escopo | Toda query de dados do atleta filtra por `user`/`userId`. |
 | Comentários | Evitar comentários supérfluos; código existente usa comentários apenas para regras não óbvias. |
@@ -1157,13 +1157,14 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 - `credentials: "include"`.
 - `Content-Type: application/json` somente quando há body.
 - Resposta convertida recursivamente de `snake_case` para `camelCase`.
-- Erro lançado como `{ status, message }`.
+- Erro lançado como `{ status, message, code? }`: o corpo JSON do erro é lido uma única vez e `message`/`code` vêm do servidor; corpo não JSON mantém `status` e `statusText` como fallback.
 - Métodos: `get`, `post`, `put`, `patch`, `del`.
 
 Módulos por domínio:
 
 - `activities.ts`, `training.ts`, `insights.ts`, `coach.ts`, `achievements.ts`, `analytics.ts`, `goals.ts`, `health.ts`, `users.ts`, `auth.ts`.
 - Muitos métodos capturam erro e retornam `null`/`[]` para simplificar estados de página.
+- `training.ts`: `updateSession`, `applySessionChange` e `applySessionsBatch` devolvem `{ ok, status?, code?, message? }`, com a mensagem do servidor quando o corpo a traz; o fallback por status vale só quando não há corpo JSON.
 
 ### 17.4 Chat do coach
 
@@ -1214,6 +1215,8 @@ Constantes visuais:
 | Insights | `getInsightsFeed`. |
 | Perfil | `getProfile`, `updateProfile`, `getHealthPolicy`. |
 | Coach | `getConversations`, `getConversationMessages`, `streamCoachMessage`, `applySessionChange`, `applySessionsBatch`. |
+
+Plano e Dashboard exibem o mesmo total planejado da semana, lido de `plannedWeeklyKm` do plano (em metros); nenhuma tela soma as sessões por conta própria. O realizado do Dashboard continua vindo de `getWeeklyStats` (`/analytics/weekly`, campo `totalDistance`) e aparece rotulado como realizado. A recusa de uma edição devolve `{ status, message, code }` e é exibida no cartão da sessão (`AGE_POLICY`, `DAY_COLLISION`, `REST_SESSION`); o cartão da proposta do coach mostra a mesma mensagem do servidor ao aplicar uma proposta.
 
 ---
 
@@ -1352,7 +1355,6 @@ corrigir sem pedido explícito.
 - **Lint do backend**: baseline com erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados.
 - **Lint do frontend**: não configurado.
 - **CD/deploy**: o CI existe, mas não há deploy automático nem migrations versionadas.
-- **Código de erro no frontend**: o client HTTP não lê o body de erro, então `code` (ex.: `AGE_POLICY`, `DAY_COLLISION`) não chega às telas.
 - **Fuso do atleta na análise**: `GET /analytics/weekly` usa o horário local do servidor e `start_date`, não o fuso do atleta; `start_date_local` não é gravado de forma confiável pela sincronização de login. Se o produto exigir o fuso do atleta, é funcionalidade própria.
 - **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
 - **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
