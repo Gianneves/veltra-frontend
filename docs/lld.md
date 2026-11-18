@@ -373,13 +373,17 @@ Regras de `updateProfile`:
 ### 6.2 `ActivitiesService`
 
 - `create`:
-  - Verifica duplicidade por `activityStravaId` (sem escopo de usuário).
+  - Verifica duplicidade por `activityStravaId` (sem escopo de usuário, porque a coluna é única) e falha se já existir.
   - Salva a atividade.
   - Em background (`.catch`), gera embedding do texto e chama `insights.generateIfMissing`.
+- `findByStravaId(activityStravaId, userId)`:
+  - Filtra `{ activityStravaId, user: { id: userId } }`; é a única forma de resolver uma atividade vinda do Strava.
 - `upsert`:
-  - Se existir, atualiza campos básicos.
+  - Resolve a atividade pelo par `activityStravaId` + dono (`user.id`).
+  - Se existir para o dono, atualiza campos básicos.
   - Campos que só vêm do detalhe (`laps`, `average_heartrate`, `max_heartrate`, `max_watts`) só são sobrescritos quando não são `null/undefined`.
-  - Se não existir, cria sem gerar IA (`generateAI = false`).
+  - Se não existir para o dono mas o `activityStravaId` pertencer a outro atleta (coluna única), não grava nada e devolve `null`; quem chama interrompe o fluxo daquela atividade.
+  - Se não existir em lugar nenhum, cria sem gerar IA (`generateAI = false`).
 - `findOneForUser`:
   - UUID → filtra `{ id, user: { id: userId } }`.
   - Caso contrário → `{ activityStravaId: Number(id), user: { id: userId } }`.
@@ -433,7 +437,8 @@ Constantes:
 - `MAX_ATTEMPTS = 3`
 - `WORKER_INTERVAL_MS = 1500`
 - `BATCH_SIZE = 10`
-- `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]`
+
+A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook, pelo backfill da geração de plano (LLD §8.2) e pela análise semanal.
 
 Fluxo:
 
@@ -444,9 +449,10 @@ Fluxo:
 5. Cada item é processado com até 3 tentativas e backoff linear (`1s × tentativa`).
 6. Falha final vai para a lista de falhas.
 7. `handleEvent`:
+   - Resolve o atleta por `owner_id` (`users.stravaId`) e encerra se ele não existir.
    - `athlete` + `authorized=false` → limpa tokens.
-   - `activity` + `delete` → desvincula sessões e remove atividade.
-   - `activity` + create/update → busca detalhe, ignora não-corridas, faz upsert, respeita vínculo manual, tenta parear e gera insight.
+   - `activity` + `delete` → resolve a atividade por `activityStravaId` + dono, desvincula apenas as sessões do plano daquele atleta, remove a atividade; evento de outro dono não desvincula nem apaga.
+   - `activity` + create/update → busca detalhe, faz upsert com o dono, respeita vínculo manual, tenta parear e gera insight. Atividade que deixou de ser corrida só é desvinculada e removida se for do dono do evento; evento cujo dono diverge da atividade gravada não altera nada.
 
 ### 7.4 Resync e subscriptions
 
@@ -1331,6 +1337,7 @@ corrigir sem pedido explícito.
 - **Sincronização no login**: `UsersService.createOrUpdate` importa todo o histórico; em contas grandes pode demorar.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).
 - **Eventos falhos**: ficam em `strava:events:failed` sem painel/retry automático.
+- **Atividade de dono divergente**: um evento cujo `owner_id` não é o dono da atividade gravada é ignorado sem erro nem re-tentativa, porque `activities.activityStravaId` é único e o registro não pode ser reatribuído a outro atleta; o evento não aparece na lista de falhas.
 - **Consentimento de saúde**: as políticas de idade são aplicadas mesmo sem consentimento registrado.
 - **`ENCRYPTION_KEY`**: variável existente só no `.env` local (ausente do `.env.example`), sem uso no código.
 - **Observabilidade**: apenas logs de erro; sem métricas ou tracing.

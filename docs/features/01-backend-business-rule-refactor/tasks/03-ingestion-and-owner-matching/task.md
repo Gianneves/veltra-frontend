@@ -1,6 +1,6 @@
 # 03: Ingestão e pareamento por dono
 
-**Status:** a fazer
+**Status:** em andamento
 
 **Objetivo:** uma atividade importada só alcança o plano e os dados do próprio atleta; apagar no Strava desfaz só o pareamento do dono. A lista de esportes de corrida deixa de viver só no webhook e vira uma constante compartilhada.
 
