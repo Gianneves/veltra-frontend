@@ -438,7 +438,7 @@ Constantes:
 - `WORKER_INTERVAL_MS = 1500`
 - `BATCH_SIZE = 10`
 
-A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook, pelo backfill da geração de plano (LLD §8.2) e pela análise semanal.
+A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook e pelo backfill da geração de plano (LLD §8.2). A análise semanal (F01-T04) passará a reutilizá-la.
 
 Fluxo:
 
@@ -461,6 +461,7 @@ Fluxo:
   - Busca todas as atividades e filtra por `start_date >= cutoff`.
   - Para cada uma, tenta buscar detalhe somente se `has_heartrate`; caso contrário, usa o summary.
   - Faz upsert, tenta parear e gera insight se faltar.
+  - Atividade cujo `upsert` devolve `null` (o `activityStravaId` pertence a outro atleta) é pulada sem parear nem gerar insight.
 - `GET/POST/DELETE /strava/subscription` exigem sessão, mas operam a subscription global da aplicação.
 
 ---
@@ -1338,6 +1339,7 @@ corrigir sem pedido explícito.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).
 - **Eventos falhos**: ficam em `strava:events:failed` sem painel/retry automático.
 - **Atividade de dono divergente**: um evento cujo `owner_id` não é o dono da atividade gravada é ignorado sem erro nem re-tentativa, porque `activities.activityStravaId` é único e o registro não pode ser reatribuído a outro atleta; o evento não aparece na lista de falhas.
+- **Atividade legada sem dono**: como `findByStravaId` e `upsert` resolvem pelo par `activityStravaId` + dono, uma atividade gravada sem `userId` (legado anterior ao escopo por usuário) fica invisível para a ingestão: não é atualizada nem apagada pelo webhook, e o ID bloqueia a criação de um registro novo por causa da coluna única. Não há script nem migration para reatribuí-la.
 - **Consentimento de saúde**: as políticas de idade são aplicadas mesmo sem consentimento registrado.
 - **`ENCRYPTION_KEY`**: variável existente só no `.env` local (ausente do `.env.example`), sem uso no código.
 - **Observabilidade**: apenas logs de erro; sem métricas ou tracing.
