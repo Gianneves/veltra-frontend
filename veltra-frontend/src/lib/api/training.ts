@@ -80,11 +80,12 @@ export async function updateSession(
       "plannedDistance" | "plannedPace" | "type" | "day" | "notes"
     >
   > & { acknowledgeAgePolicy?: boolean }
-): Promise<TrainingSession | null> {
+): Promise<ApplySessionResult> {
   try {
-    return await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);
-  } catch {
-    return null;
+    await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);
+    return { ok: true };
+  } catch (err) {
+    return sessionError(err, "Não foi possível aplicar a mudança. Tente novamente.");
   }
 }
 
@@ -108,23 +109,10 @@ export async function applySessionsBatch(
     );
     return { ok: true };
   } catch (err) {
-    const status =
-      typeof err === "object" && err !== null && "status" in err
-        ? Number((err as { status: unknown }).status) || 0
-        : 0;
-    const code =
-      typeof err === "object" && err !== null && "code" in err
-        ? String((err as { code: unknown }).code)
-        : undefined;
-    return {
-      ok: false,
-      status,
-      code,
-      message: errorMessage(
-        status,
-        "Não foi possível aplicar as mudanças em lote. Nada foi alterado.",
-      ),
-    };
+    return sessionError(
+      err,
+      "Não foi possível aplicar as mudanças em lote. Nada foi alterado.",
+    );
   }
 }
 
@@ -133,6 +121,26 @@ export interface ApplySessionResult {
   status?: number;
   code?: string;
   message?: string;
+}
+
+function sessionError(err: unknown, fallback: string): ApplySessionResult {
+  const record =
+    typeof err === "object" && err !== null
+      ? (err as Record<string, unknown>)
+      : null;
+  const status = Number(record?.status) || 0;
+  const code = typeof record?.code === "string" ? record.code : undefined;
+  const serverMessage =
+    typeof record?.message === "string" && record.message.length > 0
+      ? record.message
+      : undefined;
+
+  return {
+    ok: false,
+    status,
+    code,
+    message: serverMessage ?? errorMessage(status, fallback),
+  };
 }
 
 function errorMessage(status: number, fallback: string): string {
@@ -160,14 +168,9 @@ export async function applySessionChange(
     );
     return { ok: true };
   } catch (err) {
-    const status =
-      typeof err === "object" && err !== null && "status" in err
-        ? Number((err as { status: unknown }).status) || 0
-        : 0;
-    return {
-      ok: false,
-      status,
-      message: errorMessage(status, "Não foi possível aplicar a mudança. Tente novamente."),
-    };
+    return sessionError(
+      err,
+      "Não foi possível aplicar a mudança. Tente novamente.",
+    );
   }
 }

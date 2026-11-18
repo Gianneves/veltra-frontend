@@ -148,10 +148,7 @@ export default function DashboardPage() {
   const lastRuns = activities.slice(0, 3);
   const totalKm =
     activities.reduce((sum, activity) => sum + activity.distance, 0) / 1000;
-  const plannedWeekKm =
-    (plan?.sessions ?? [])
-      .filter(isWorkout)
-      .reduce((sum, session) => sum + session.plannedDistance, 0) / 1000;
+  const plannedWeekKm = (plan?.plannedWeeklyKm ?? 0) / 1000;
   const weekDistanceKm = (weekly?.totalDistance ?? 0) / 1000;
   const weekProgress =
     plannedWeekKm > 0
@@ -195,11 +192,16 @@ export default function DashboardPage() {
         >
           <div className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-2">
-              <DataDisplay
-                value={weekDistanceKm.toFixed(1)}
-                unit="km"
-                size="lg"
-              />
+              <div>
+                <p className="font-geist text-[11px] uppercase tracking-wide text-on-surface-variant">
+                  Realizado
+                </p>
+                <DataDisplay
+                  value={weekDistanceKm.toFixed(1)}
+                  unit="km"
+                  size="lg"
+                />
+              </div>
               <p className="font-geist text-xs text-on-surface-variant">
                 {weekly?.runCount ?? 0} corridas &bull;{" "}
                 {formatTime(weekly?.totalTime ?? 0)}
@@ -215,8 +217,8 @@ export default function DashboardPage() {
                   />
                 </div>
                 <p className="font-geist text-[11px] text-on-surface-variant">
-                  {Math.round(weekProgress)}% do planejado &bull; meta de{" "}
-                  {plannedWeekKm.toFixed(0)}km
+                  {Math.round(weekProgress)}% do planejado &bull;{" "}
+                  {plannedWeekKm.toFixed(0)}km planejados
                 </p>
               </div>
             ) : (
