@@ -1,6 +1,6 @@
 # 04: Semana atual da análise
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** `GET /analytics/weekly` conta a semana atual de segunda a domingo no horário local do servidor, em intervalo semiaberto, e só as corridas do atleta; uma corrida na virada pertence a uma única semana.
 
@@ -16,9 +16,9 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · A janela começa na segunda-feira 00:00 local e termina na segunda seguinte 00:00 local, sem incluir o limite final.
-- [ ] **CA2** · Uma corrida exatamente na virada é contada em uma única semana.
-- [ ] **CA3** · Atividade que não é corrida não entra em distância, tempo nem contagem.
-- [ ] **CA4** · A consulta filtra pelo usuário da sessão e nunca soma atividade de outro atleta.
-- [ ] **CA5** · Os campos devolvidos continuam `totalDistance`, `totalTime`, `runCount` e `weekStart`, com o mesmo formato.
-- [ ] **CA6** · `npx jest` no spec tocado, `npx eslint` nos arquivos alterados e `npm run build` passam.
+- [x] **CA1** · A janela começa na segunda-feira 00:00 local e termina na segunda seguinte 00:00 local, sem incluir o limite final.
+- [x] **CA2** · Uma corrida exatamente na virada é contada em uma única semana.
+- [x] **CA3** · Atividade que não é corrida não entra em distância, tempo nem contagem.
+- [x] **CA4** · A consulta filtra pelo usuário da sessão e nunca soma atividade de outro atleta.
+- [x] **CA5** · Os campos devolvidos continuam `totalDistance`, `totalTime`, `runCount` e `weekStart`, com o mesmo formato.
+- [x] **CA6** · `npx jest` no spec tocado, `npx eslint` nos arquivos alterados e `npm run build` passam.

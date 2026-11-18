@@ -1,6 +1,6 @@
 # LLD — Veltra (Low-Level Design)
 
-> **Última atualização:** 17/11/2026
+> **Última atualização:** 18/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento de contexto:** [HLD](./hld.md)
 > **Fonte de verdade:** este documento descreve a implementação **as-built**. Divergências entre código e documento devem ser resolvidas na mesma tarefa.
@@ -438,7 +438,7 @@ Constantes:
 - `WORKER_INTERVAL_MS = 1500`
 - `BATCH_SIZE = 10`
 
-A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook e pelo backfill da geração de plano (LLD §8.2). A análise semanal (F01-T04) passará a reutilizá-la.
+A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook, pelo backfill da geração de plano (LLD §8.2) e pela análise semanal (`LLD §14`).
 
 Fluxo:
 
