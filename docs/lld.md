@@ -1060,16 +1060,21 @@ cobre apenas a distância por sessão; volume e qualidade são recusados mesmo c
 
 `AnalyticsService.getWeeklyStats(userId)`:
 
-1. `weekStart` = segunda-feira da semana atual, 00:00 local.
-2. `weekEnd` = segunda seguinte.
-3. Busca atividades do usuário com `start_date` entre as datas.
+1. `weekStart` = segunda-feira da semana atual, 00:00 no horário local do servidor.
+2. `weekEnd` = segunda seguinte, 00:00 local. A janela é semiaberta: `[weekStart, weekEnd)`.
+3. Busca atividades do usuário com `start_date` a partir de `weekStart` (inclusive) e antes de
+   `weekEnd` (exclusive), restritas a corrida (`sport_type` em `RUN_SPORTS` — `Run`, `TrailRun` e
+   `VirtualRun`, `LLD §7.3`).
 4. Retorna:
    - `totalDistance` (metros)
    - `totalTime` (segundos)
    - `runCount`
    - `weekStart` (ISO)
 
-Sem filtro por tipo: conta todas as atividades do período.
+A janela usa `start_date` (instante UTC) comparado aos limites locais do servidor; `start_date_local`
+não é usado porque é o horário local do Strava e a sincronização de login não o grava de forma
+confiável. Uma corrida exatamente no limite superior pertence à semana seguinte, porque o limite é
+exclusivo.
 
 ---
 
@@ -1348,7 +1353,7 @@ corrigir sem pedido explícito.
 - **Lint do frontend**: não configurado.
 - **CD/deploy**: o CI existe, mas não há deploy automático nem migrations versionadas.
 - **Código de erro no frontend**: o client HTTP não lê o body de erro, então `code` (ex.: `AGE_POLICY`, `DAY_COLLISION`) não chega às telas.
-- **`GET /analytics/weekly`**: não filtra por tipo de atividade, embora a UI trate como corrida.
+- **Fuso do atleta na análise**: `GET /analytics/weekly` usa o horário local do servidor e `start_date`, não o fuso do atleta; `start_date_local` não é gravado de forma confiável pela sincronização de login. Se o produto exigir o fuso do atleta, é funcionalidade própria.
 - **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
 - **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
 - **Trava só nas rotas de edição**: `PUT .../sessions/:sessionId` e `PUT .../sessions/batch` travam a linha do plano; geração, pareamento e ajuste de volume não travam, então uma geração concorrente com uma edição pode sobrescrever a semana em edição.

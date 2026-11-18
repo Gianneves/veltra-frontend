@@ -1,6 +1,6 @@
 # 04: Semana atual da análise
 
-**Status:** a fazer
+**Status:** em andamento
 
 **Objetivo:** `GET /analytics/weekly` conta a semana atual de segunda a domingo no horário local do servidor, em intervalo semiaberto, e só as corridas do atleta; uma corrida na virada pertence a uma única semana.
 
