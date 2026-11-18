@@ -1,6 +1,6 @@
 # 05: Recusa e total na interface
 
-**Status:** a fazer
+**Status:** concluída
 
 **Objetivo:** quando o servidor recusa uma edição, a pessoa vê o motivo em pt-BR no próprio cartão da sessão ou da proposta; o plano e o dashboard mostram o mesmo total planejado da semana, com o realizado separado.
 
@@ -16,9 +16,9 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · Um 400 com `{ code, message }` chega ao chamador como `{ status, message, code }` com o texto do servidor; um corpo não JSON mantém o fallback atual.
-- [ ] **CA2** · A página do plano exibe a mensagem da recusa ao editar distância ou pace, sem alterar a semana e sem recarregar com estado divergente.
-- [ ] **CA3** · O chat do coach exibe a mensagem real quando uma proposta é recusada ao aplicar, no lugar do texto genérico.
-- [ ] **CA4** · O planejado do dashboard e o cabeçalho da semana do plano usam `plannedWeeklyKm` e exibem o mesmo valor; o realizado continua vindo de `/analytics/weekly` e rotulado como realizado.
-- [ ] **CA5** · Nenhuma rota, campo, componente de `ui` ou item de sidebar novo é criado.
-- [ ] **CA6** · `npx tsc --noEmit` passa e o roteiro manual de tela da spec é executado.
+- [x] **CA1** · Um 400 com `{ code, message }` chega ao chamador como `{ status, message, code }` com o texto do servidor; um corpo não JSON mantém o fallback atual.
+- [x] **CA2** · A página do plano exibe a mensagem da recusa ao editar distância ou pace, sem alterar a semana e sem recarregar com estado divergente.
+- [x] **CA3** · O chat do coach exibe a mensagem real quando uma proposta é recusada ao aplicar, no lugar do texto genérico.
+- [x] **CA4** · O planejado do dashboard e o cabeçalho da semana do plano usam `plannedWeeklyKm` e exibem o mesmo valor; o realizado continua vindo de `/analytics/weekly` e rotulado como realizado.
+- [x] **CA5** · Nenhuma rota, campo, componente de `ui` ou item de sidebar novo é criado.
+- [x] **CA6** · `npx tsc --noEmit` passa e o roteiro manual de tela da spec é executado.

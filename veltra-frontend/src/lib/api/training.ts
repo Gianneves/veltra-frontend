@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "./client";
+import { api, type ApiError } from "./client";
 import { mockTrainingPlan } from "./mock";
 import type { TrainingPattern, TrainingPlan, TrainingSession } from "./types";
 
@@ -80,11 +80,12 @@ export async function updateSession(
       "plannedDistance" | "plannedPace" | "type" | "day" | "notes"
     >
   > & { acknowledgeAgePolicy?: boolean }
-): Promise<TrainingSession | null> {
+): Promise<ApplySessionResult> {
   try {
-    return await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);
-  } catch {
-    return null;
+    await api.put<TrainingSession>(`/training-plans/${planId}/sessions/${sessionId}`, data);
+    return { ok: true };
+  } catch (err) {
+    return sessionError(err, "Não foi possível aplicar a mudança. Tente novamente.");
   }
 }
 
@@ -108,23 +109,10 @@ export async function applySessionsBatch(
     );
     return { ok: true };
   } catch (err) {
-    const status =
-      typeof err === "object" && err !== null && "status" in err
-        ? Number((err as { status: unknown }).status) || 0
-        : 0;
-    const code =
-      typeof err === "object" && err !== null && "code" in err
-        ? String((err as { code: unknown }).code)
-        : undefined;
-    return {
-      ok: false,
-      status,
-      code,
-      message: errorMessage(
-        status,
-        "Não foi possível aplicar as mudanças em lote. Nada foi alterado.",
-      ),
-    };
+    return sessionError(
+      err,
+      "Não foi possível aplicar as mudanças em lote. Nada foi alterado.",
+    );
   }
 }
 
@@ -133,6 +121,27 @@ export interface ApplySessionResult {
   status?: number;
   code?: string;
   message?: string;
+}
+
+function sessionError(err: unknown, fallback: string): ApplySessionResult {
+  const error = (typeof err === "object" && err !== null ? err : {}) as Partial<ApiError>;
+  const status = typeof error.status === "number" ? error.status : 0;
+  const code = typeof error.code === "string" ? error.code : undefined;
+  // Só o erro de regra (com code) traz mensagem em pt-BR; sem corpo JSON o client
+  // devolve o statusText, que não deve substituir o fallback por status.
+  const serverMessage =
+    code !== undefined &&
+    typeof error.message === "string" &&
+    error.message.length > 0
+      ? error.message
+      : undefined;
+
+  return {
+    ok: false,
+    status,
+    code,
+    message: serverMessage ?? errorMessage(status, fallback),
+  };
 }
 
 function errorMessage(status: number, fallback: string): string {
@@ -160,14 +169,9 @@ export async function applySessionChange(
     );
     return { ok: true };
   } catch (err) {
-    const status =
-      typeof err === "object" && err !== null && "status" in err
-        ? Number((err as { status: unknown }).status) || 0
-        : 0;
-    return {
-      ok: false,
-      status,
-      message: errorMessage(status, "Não foi possível aplicar a mudança. Tente novamente."),
-    };
+    return sessionError(
+      err,
+      "Não foi possível aplicar a mudança. Tente novamente.",
+    );
   }
 }

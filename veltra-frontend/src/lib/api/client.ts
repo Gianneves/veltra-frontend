@@ -2,9 +2,31 @@
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
 
-interface ApiError {
+export interface ApiError {
   status: number;
   message: string;
+  code?: string;
+}
+
+function textField(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+async function errorFromResponse(res: Response): Promise<ApiError> {
+  try {
+    const body: unknown = await res.json();
+    if (body !== null && typeof body === "object") {
+      const record = body as Record<string, unknown>;
+      return {
+        status: res.status,
+        message: textField(record.message) ?? res.statusText,
+        code: textField(record.code),
+      };
+    }
+  } catch {
+    // Corpo não JSON (proxy ou indisponibilidade): mantém o fallback de status.
+  }
+  return { status: res.status, message: res.statusText };
 }
 
 function toCamel(str: string): string {
@@ -38,8 +60,7 @@ async function request<T>(
   });
 
   if (!res.ok) {
-    const err: ApiError = { status: res.status, message: res.statusText };
-    throw err;
+    throw await errorFromResponse(res);
   }
 
   const json = await res.json();

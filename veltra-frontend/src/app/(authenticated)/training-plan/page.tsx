@@ -184,14 +184,30 @@ function SessionCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingMeters, setPendingMeters] = useState<number | null>(null);
   const [policyWarning, setPolicyWarning] = useState("");
+  const [editError, setEditError] = useState("");
   const adherence = adherenceInfo(session);
   const hasActual =
     session.completed && session.actualDistance !== null && session.actualDistance !== undefined;
+
+  const saveEdit = async (
+    data: Parameters<typeof updateSession>[2],
+  ) => {
+    setEditError("");
+    const result = await updateSession(planId, session.id, data);
+    if (!result.ok) {
+      setEditError(
+        result.message ?? "Não foi possível aplicar a mudança. Tente novamente.",
+      );
+      return;
+    }
+    onUpdated();
+  };
 
   const handleSaveDistance = async (val: string) => {
     const meters = Math.round(parseFloat(val) * 1000);
     if (isNaN(meters)) return;
 
+    setEditError("");
     const policy = await getHealthPolicy(meters / 1000);
     const assessment = policy?.assessment;
     const adjustment = policy?.planAdjustment;
@@ -210,27 +226,22 @@ function SessionCard({
       return;
     }
 
-    await updateSession(planId, session.id, { plannedDistance: meters });
-    onUpdated();
+    await saveEdit({ plannedDistance: meters });
   };
 
   const handleConfirmDistance = async () => {
     if (pendingMeters === null) return;
-    await updateSession(planId, session.id, {
-      plannedDistance: pendingMeters,
-      acknowledgeAgePolicy: true,
-    });
+    const meters = pendingMeters;
     setConfirmOpen(false);
     setPendingMeters(null);
-    onUpdated();
+    await saveEdit({ plannedDistance: meters, acknowledgeAgePolicy: true });
   };
 
   const handleSavePace = async (val: string) => {
     const parts = val.split(":").map(Number);
     const seconds = parts[0] * 60 + (parts[1] || 0);
     if (isNaN(seconds)) return;
-    await updateSession(planId, session.id, { plannedPace: seconds });
-    onUpdated();
+    await saveEdit({ plannedPace: seconds });
   };
 
   return (
@@ -272,6 +283,12 @@ function SessionCard({
               />
             </div>
           </div>
+        )}
+
+        {editError && (
+          <p className="rounded-lg bg-error-container/60 px-2.5 py-1.5 font-geist text-xs text-on-error-container">
+            {editError}
+          </p>
         )}
 
         {session.adjusted && session.type !== "rest" && (
@@ -642,7 +659,7 @@ export default function TrainingPlanPage() {
           const index = page * WEEKS_PER_PAGE + i;
           const isExpanded = expandedWeeks.has(index);
           const runSessions = plan.sessions.filter((s) => s.type !== "rest");
-          const totalDist = runSessions.reduce((acc, s) => acc + s.plannedDistance, 0);
+          const plannedKm = (plan.plannedWeeklyKm ?? 0) / 1000;
 
           const isCurrent = isCurrentWeek(plan.weekStart);
           const extras = extraActivities(plan);
@@ -669,7 +686,7 @@ export default function TrainingPlanPage() {
                     {weekLabel(plan.weekStart)}
                   </span>
                   <span className="text-sm text-on-surface-variant">
-                    {runSessions.length} treinos · {(totalDist / 1000).toFixed(0)}km
+                    {runSessions.length} treinos · {plannedKm.toFixed(0)}km
                   </span>
                   {plan.focus && (
                     <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">

@@ -1,6 +1,6 @@
 # LLD — Veltra (Low-Level Design)
 
-> **Última atualização:** 17/11/2026
+> **Última atualização:** 18/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento de contexto:** [HLD](./hld.md)
 > **Fonte de verdade:** este documento descreve a implementação **as-built**. Divergências entre código e documento devem ser resolvidas na mesma tarefa.
@@ -58,7 +58,7 @@ Convenções de caminho:
 | IDs | UUID v7 gerado em `@BeforeInsert`. |
 | Datas | `timestamptz` no banco; strings ISO na API. |
 | Semana | Segunda a domingo, calculada em horário local do servidor. |
-| Erros de regra | `BadRequestException({ code, message, ... })` no backend. O client atual propaga apenas `status` e `message` — o `code` do body ainda não chega ao frontend. |
+| Erros de regra | `BadRequestException({ code, message, ... })` no backend. O client lê o corpo JSON do erro uma vez e propaga `{ status, message, code }`; sem corpo JSON, mantém `status` e `statusText`. |
 | Autenticação | `AuthSessionService.resolveUserId(req)` em toda rota autenticada. |
 | Escopo | Toda query de dados do atleta filtra por `user`/`userId`. |
 | Comentários | Evitar comentários supérfluos; código existente usa comentários apenas para regras não óbvias. |
@@ -438,7 +438,7 @@ Constantes:
 - `WORKER_INTERVAL_MS = 1500`
 - `BATCH_SIZE = 10`
 
-A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook e pelo backfill da geração de plano (LLD §8.2). A análise semanal (F01-T04) passará a reutilizá-la.
+A lista de esportes de corrida não vive mais neste arquivo: `RUN_SPORTS = ["Run", "TrailRun", "VirtualRun"]` está em `src/activities/run-sports.ts` e é importada pelo webhook, pelo backfill da geração de plano (LLD §8.2) e pela análise semanal (`LLD §14`).
 
 Fluxo:
 
@@ -489,6 +489,11 @@ planejadas das sessões não-descanso, em metros; a normalização não grava no
 
 `PUT /training-plans/:planId/sessions/:sessionId/activity` recusa vínculo de atividade com sessão de
 descanso com `400` e `code: "REST_SESSION"`; desvincular continua permitido.
+
+`PUT /training-plans/:planId/sessions/:sessionId` e `PUT /training-plans/:planId/sessions/batch`
+são parciais: campo omitido do corpo mantém o valor atual. O `ValidationPipe` com `whitelist`
+entrega os campos opcionais ausentes como `undefined`; o service ignora esses valores ao montar o
+estado final, para não apagar dia, tipo ou distância nem corromper `plannedWeeklyKm`.
 
 ### 8.2 Geração do plano
 
@@ -1060,16 +1065,21 @@ cobre apenas a distância por sessão; volume e qualidade são recusados mesmo c
 
 `AnalyticsService.getWeeklyStats(userId)`:
 
-1. `weekStart` = segunda-feira da semana atual, 00:00 local.
-2. `weekEnd` = segunda seguinte.
-3. Busca atividades do usuário com `start_date` entre as datas.
+1. `weekStart` = segunda-feira da semana atual, 00:00 no horário local do servidor.
+2. `weekEnd` = segunda seguinte, 00:00 local. A janela é semiaberta: `[weekStart, weekEnd)`.
+3. Busca atividades do usuário com `start_date` a partir de `weekStart` (inclusive) e antes de
+   `weekEnd` (exclusive), restritas a corrida (`sport_type` em `RUN_SPORTS` — `Run`, `TrailRun` e
+   `VirtualRun`, `LLD §7.3`).
 4. Retorna:
    - `totalDistance` (metros)
    - `totalTime` (segundos)
    - `runCount`
    - `weekStart` (ISO)
 
-Sem filtro por tipo: conta todas as atividades do período.
+A janela usa `start_date` (instante UTC) comparado aos limites locais do servidor; `start_date_local`
+não é usado porque é o horário local do Strava e a sincronização de login não o grava de forma
+confiável. Uma corrida exatamente no limite superior pertence à semana seguinte, porque o limite é
+exclusivo.
 
 ---
 
@@ -1152,13 +1162,14 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 - `credentials: "include"`.
 - `Content-Type: application/json` somente quando há body.
 - Resposta convertida recursivamente de `snake_case` para `camelCase`.
-- Erro lançado como `{ status, message }`.
+- Erro lançado como `{ status, message, code? }`: o corpo JSON do erro é lido uma única vez e `message`/`code` vêm do servidor; corpo não JSON mantém `status` e `statusText` como fallback.
 - Métodos: `get`, `post`, `put`, `patch`, `del`.
 
 Módulos por domínio:
 
 - `activities.ts`, `training.ts`, `insights.ts`, `coach.ts`, `achievements.ts`, `analytics.ts`, `goals.ts`, `health.ts`, `users.ts`, `auth.ts`.
 - Muitos métodos capturam erro e retornam `null`/`[]` para simplificar estados de página.
+- `training.ts`: `updateSession`, `applySessionChange` e `applySessionsBatch` devolvem `{ ok, status?, code?, message? }`, com a mensagem do servidor quando o corpo do erro traz `code` (erro de regra); o fallback por status vale quando o corpo não é JSON ou não traz `code`.
 
 ### 17.4 Chat do coach
 
@@ -1209,6 +1220,8 @@ Constantes visuais:
 | Insights | `getInsightsFeed`. |
 | Perfil | `getProfile`, `updateProfile`, `getHealthPolicy`. |
 | Coach | `getConversations`, `getConversationMessages`, `streamCoachMessage`, `applySessionChange`, `applySessionsBatch`. |
+
+Plano e Dashboard exibem o mesmo total planejado da semana, lido de `plannedWeeklyKm` do plano (em metros); nenhuma tela soma as sessões por conta própria. O realizado do Dashboard continua vindo de `getWeeklyStats` (`/analytics/weekly`, campo `totalDistance`) e aparece rotulado como realizado. A recusa de uma edição devolve `{ status, message, code }` e é exibida no cartão da sessão (`AGE_POLICY`, `DAY_COLLISION`, `REST_SESSION`); o cartão da proposta do coach mostra a mesma mensagem do servidor ao aplicar uma proposta.
 
 ---
 
@@ -1347,8 +1360,7 @@ corrigir sem pedido explícito.
 - **Lint do backend**: baseline com erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados.
 - **Lint do frontend**: não configurado.
 - **CD/deploy**: o CI existe, mas não há deploy automático nem migrations versionadas.
-- **Código de erro no frontend**: o client HTTP não lê o body de erro, então `code` (ex.: `AGE_POLICY`, `DAY_COLLISION`) não chega às telas.
-- **`GET /analytics/weekly`**: não filtra por tipo de atividade, embora a UI trate como corrida.
+- **Fuso do atleta na análise**: `GET /analytics/weekly` usa o horário local do servidor e `start_date`, não o fuso do atleta; `start_date_local` não é gravado de forma confiável pela sincronização de login. Se o produto exigir o fuso do atleta, é funcionalidade própria.
 - **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
 - **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
 - **Trava só nas rotas de edição**: `PUT .../sessions/:sessionId` e `PUT .../sessions/batch` travam a linha do plano; geração, pareamento e ajuste de volume não travam, então uma geração concorrente com uma edição pode sobrescrever a semana em edição.
