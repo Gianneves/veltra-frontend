@@ -653,8 +653,8 @@ ao lado anulável de um `LEFT JOIN`; as sessões são lidas em seguida, dentro d
    devolve `null`.
 3. Simula o estado final do plano com as mudanças do corpo.
 4. Valida, nesta ordem:
-   - distância por idade, quando o estado final da sessão tem `plannedDistance > 0`:
-     `assessDistanceForAge` e `planAgeAdjustment` (teto de longão) bloqueiam com
+   - distância por idade, quando o corpo da edição traz `plannedDistance > 0`
+     (comportamento atual): `assessDistanceForAge` e `planAgeAdjustment` (teto de longão) bloqueiam com
      `{ code: "AGE_POLICY", ... }` se excederem e `acknowledgeAgePolicy` não vier;
    - dia único, quando o corpo traz `day` e o dia já tem outra sessão no estado final
      (`DAY_COLLISION`);
