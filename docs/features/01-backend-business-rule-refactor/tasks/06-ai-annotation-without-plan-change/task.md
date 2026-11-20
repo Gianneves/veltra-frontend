@@ -1,6 +1,6 @@
 # 06: Anotação de IA sem mudança de plano
 
-**Status:** a fazer
+**Status:** em andamento
 
 **Objetivo:** o caminho que grava foco, notas do plano e dicas do coach produz apenas esses três campos; nenhuma anotação de IA altera distância, pace, dia, tipo ou conclusão de uma sessão.
 
