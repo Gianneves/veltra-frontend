@@ -1,6 +1,6 @@
 # 01: Porta de fornecedor de IA
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** todo texto gerado por IA passa a ser pedido por um contrato único de chamada, com o OpenAI atrás dele, sem mudar prompt, parsing, tier nem comportamento observável.
 
@@ -14,8 +14,8 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · Insight de corrida, análise/foco/dicas do plano, resposta do chat (com e sem streaming) e desempate de pareamento continuam atendidos pelo OpenAI, com o mesmo prompt de sistema, contexto, temperatura, teto de tokens e timeout de cada tarefa.
-- [ ] **CA2** · O escalonamento cheap → premium por parsing inválido e o fallback premium do streaming continuam valendo no principal, como hoje.
-- [ ] **CA3** · O embedding continua sendo gerado pelo OpenAI e a porta não o envolve; a indisponibilidade dele segue sem efeito no fluxo.
-- [ ] **CA4** · Nenhum service de domínio (`insights`, `coach`, `training-plans`, `activities`) passa a importar SDK ou a construir modelo; todos continuam falando só com o `AiService`.
-- [ ] **CA5** · Os specs existentes (`ai.service.spec`, `coach.service.spec`, `insights.service.spec`, `training-plans.service.spec`, `activity-matcher.service.spec`) continuam verdes sem alterar a expectativa de conteúdo, e `npm run build` e o lint dos arquivos alterados passam.
+- [x] **CA1** · Insight de corrida, análise/foco/dicas do plano, resposta do chat (com e sem streaming) e desempate de pareamento continuam atendidos pelo OpenAI, com o mesmo prompt de sistema, contexto, temperatura, teto de tokens e timeout de cada tarefa.
+- [x] **CA2** · O escalonamento cheap → premium por parsing inválido e o fallback premium do streaming continuam valendo no principal, como hoje.
+- [x] **CA3** · O embedding continua sendo gerado pelo OpenAI e a porta não o envolve; a indisponibilidade dele segue sem efeito no fluxo.
+- [x] **CA4** · Nenhum service de domínio (`insights`, `coach`, `training-plans`, `activities`) passa a importar SDK ou a construir modelo; todos continuam falando só com o `AiService`.
+- [x] **CA5** · Os specs existentes (`ai.service.spec`, `coach.service.spec`, `insights.service.spec`, `training-plans.service.spec`, `activity-matcher.service.spec`) continuam verdes sem alterar a expectativa de conteúdo, e `npm run build` e o lint dos arquivos alterados passam.
