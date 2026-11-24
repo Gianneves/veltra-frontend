@@ -1,6 +1,6 @@
 # LLD — Veltra (Low-Level Design)
 
-> **Última atualização:** 18/11/2026
+> **Última atualização:** 24/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento de contexto:** [HLD](./hld.md)
 > **Fonte de verdade:** este documento descreve a implementação **as-built**. Divergências entre código e documento devem ser resolvidas na mesma tarefa.
@@ -974,7 +974,10 @@ No frontend, `streamCoachMessage` lê o body via `ReadableStream`, separa frames
 
 ## 12. AI service
 
-Arquivos: `src/ai/ai.service.ts` (prompts, parsing e chamadas) e `src/ai/model-router.ts` (seleção de modelo).
+Arquivos: `src/ai/ai-provider.ts` (contrato da porta e erro tipado de indisponibilidade),
+`src/ai/openai-provider.ts` (adaptador do OpenAI, roteamento e embeddings),
+`src/ai/ai.service.ts` (prompts, sinais, parsing, escalonamento e log) e `src/ai/model-router.ts`
+(seleção de modelo).
 
 | Função | Tarefa | Tier padrão | Temperatura | Timeout | Max tokens |
 | --- | --- | --- | --- | --- | --- |
@@ -987,9 +990,36 @@ Arquivos: `src/ai/ai.service.ts` (prompts, parsing e chamadas) e `src/ai/model-r
 
 Sem `OPENAI_API_KEY`, as funções retornam `null` (e o fluxo segue sem IA).
 
+**Porta (`AiProvider`).** Todo texto gerado por IA é pedido pela porta `src/ai/ai-provider.ts`; o
+`OpenAiProvider` (`src/ai/openai-provider.ts`) é o adaptador do fornecedor principal. O `AiService`
+monta prompt e mensagens, pede o tier à porta e delega transporte, teto e timeout ao adaptador;
+nenhum service de domínio importa SDK de fornecedor.
+
+| Peça | Conteúdo |
+| --- | --- |
+| `AiProviderRequest` | `task`, `messages` (`{ role: 'system' \| 'user' \| 'assistant', content }`), `temperature`, `maxTokens`, `timeoutMs` e `routing` com os sinais de §12.1 |
+| `AiProviderResult` | `text`, `decision` (`tier`, `model`, `reason`) e `usage` |
+| `AiProvider` | métodos `decide(request)`, `complete(request, tier)`, `stream(request, tier)` com `onToken` e `canEscalate()` |
+| `AiProviderUnavailableError` | `provider`, `reason` (`http`, `transport` ou `timeout`), `status` e `cause` |
+
+- O adaptador converte `messages` em `SystemMessage`/`HumanMessage`/`AIMessage`, aplica `maxTokens`
+  ao `ChatOpenAI` e aborta a chamada em `timeoutMs`; valor `<= 0` desliga o timeout.
+- Transporte, timeout e resposta HTTP não-2xx viram `AiProviderUnavailableError`. A política de
+  troca de fornecedor não vive no adaptador.
+- Resposta `2xx` vazia não vira erro: segue o parser e o escalonamento de §12.1.
+- `decide` usa `AiModelRouter.decide` e emite o log de decisão
+  (`[ai] task=... tier=... model=... reason=...`); `canEscalate` reflete `OPENAI_MODEL_ESCALATION`.
+- Embeddings ficam **fora** da porta: `OpenAiProvider.createEmbedding(text)`
+  (`text-embedding-3-small`) é chamado por `AiService.createEmbedding`, e a falha dele não
+  interrompe o fluxo da corrida (§6.3).
+- `AiModule` registra `AiModelRouter`, `OpenAiProvider` e a porta (`useExisting: OpenAiProvider`) e
+  exporta só o `AiService`.
+
 ### 12.1 Roteamento de modelos
 
-`AiModelRouter` (`src/ai/model-router.ts`) escolhe o tier antes da chamada, sem custo adicional de classificação:
+`AiModelRouter` (`src/ai/model-router.ts`) escolhe o tier antes da chamada, sem custo adicional de
+classificação. Depois da porta, o router é usado **só pelo adaptador** (`OpenAiProvider`): o
+`AiService` não o injeta e fala com a porta.
 
 - `OPENAI_MODEL_ROUTING=auto` (padrão): decide por tarefa/complexidade; `cheap` ou `premium` forçam o tier.
 - Nomes: `OPENAI_MODEL_CHEAP` (padrão `gpt-4o-mini`) e `OPENAI_MODEL_PREMIUM` (padrão `gpt-4o`).
@@ -998,8 +1028,9 @@ Sem `OPENAI_API_KEY`, as funções retornam `null` (e o fluxo segue sem IA).
   - `plan_review` → premium;
   - `activity_insight` → premium se houver sinal de saúde ou contexto > 6.000 caracteres; senão cheap;
   - `coach_reply` → premium se houver sinal de saúde, intenção de mudar o plano, contexto > 8.000 caracteres ou histórico > 12 mensagens; senão cheap.
-- Sinais textuais: `PLAN_CHANGE_PATTERN` (mudar, ajustar, trocar, reduzir, ativar etc.) e `HEALTH_SIGNAL_PATTERN` (dor, lesão, sintoma, saúde, alerta etc.).
-- `RunnableBranch` do LangChain roteia para `ChatOpenAI` cheap ou premium preservando streaming.
+- Sinais textuais: `PLAN_CHANGE_PATTERN` (mudar, ajustar, trocar, reduzir, ativar etc.) e `HEALTH_SIGNAL_PATTERN` (dor, lesão, sintoma, saúde, alerta etc.), disponíveis como funções exportadas (`hasPlanChangeIntent`, `hasHealthSignal`) além dos métodos da classe; o `AiService` usa as funções para montar `routing`.
+- O adaptador cria o `ChatOpenAI` do tier decidido com `createModel(tier, task, temperature, maxTokens)`; o streaming continua suportado pelo `stream` do modelo.
+- Teto por tarefa: `MAX_TOKENS_BY_TASK` é exportado; o `AiService` envia o teto no pedido e o adaptador o aplica ao modelo, sem segunda tabela.
 - Escalonamento: em `invokeParsed`, se o cheap devolver saída que não passa no parser, uma única nova chamada usa o premium (`OPENAI_MODEL_ESCALATION=false` desliga). No streaming, o fallback premium só ocorre se nenhum token foi emitido.
 - Uso: `console.info('[ai] task=... tier=... model=... usage=...')` quando a OpenAI retorna `usage_metadata`.
 
