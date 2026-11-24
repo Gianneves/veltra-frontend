@@ -523,8 +523,18 @@ estado final, para não apagar dia, tipo ou distância nem corromper `plannedWee
    - Cria as sessões.
    - Persiste plano e sessões.
 10. Junta notas da primeira semana: calibração, padrão, meta e idade.
-11. Dispara enriquecimento por IA em background.
+11. Dispara enriquecimento por IA em background, que grava apenas anotações (abaixo).
 12. Faz backfill de atividades recentes (desde `startWeek - 1 dia`, até 50, só corrida, sem vínculo existente).
+
+Enriquecimento por IA (passo 11). É anotação, não mudança de plano (ADR-0002, HLD §9.7): monta
+o contexto do atleta, chama `AiService.generatePlanReview` e entrega a revisão ao construtor puro
+`buildPlanAnnotations` (`src/training-plans/plan-annotations.ts`). O construtor devolve somente as
+atualizações de `focus`, `coachNotes` (notas do plano) e `notes` (dicas do coach nas sessões), e o
+service apenas as aplica, sem tocar distância, pace, dia, tipo ou conclusão. Ele trunca `focus` em
+120 caracteres, `coachNotes` em 1.200 e `notes` em 500. A revisão de uma semana é casada pelo
+`weekStart` do plano; dica sem texto e revisão de semana sem plano não geram atualização. Sem
+`OPENAI_API_KEY`, sem plano ou sem revisão, nada é gravado. Prompt, modelo e fluxo de propostas
+não fazem parte deste caminho.
 
 ### 8.3 Cálculo de paces
 

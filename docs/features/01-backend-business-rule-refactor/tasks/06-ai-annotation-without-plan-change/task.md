@@ -1,6 +1,6 @@
 # 06: Anotação de IA sem mudança de plano
 
-**Status:** a fazer
+**Status:** concluída
 
 **Objetivo:** o caminho que grava foco, notas do plano e dicas do coach produz apenas esses três campos; nenhuma anotação de IA altera distância, pace, dia, tipo ou conclusão de uma sessão.
 
@@ -14,9 +14,9 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · O construtor puro recebe a revisão da IA e o plano e devolve somente foco, notas do plano e notas de sessão.
-- [ ] **CA2** · Nenhuma atualização produzida toca distância, pace, dia, tipo ou conclusão.
-- [ ] **CA3** · Os limites de tamanho atuais continuam valendo para foco, notas do plano e notas da sessão.
-- [ ] **CA4** · O service aplica o resultado e o comportamento visível do plano não muda quando não há IA.
-- [ ] **CA5** · O spec novo prova a garantia da ADR-0002 e passa junto com os demais specs tocados.
-- [ ] **CA6** · `npx jest` nos specs tocados, `npx eslint` nos arquivos alterados e `npm run build` passam.
+- [x] **CA1** · O construtor puro recebe a revisão da IA e o plano e devolve somente foco, notas do plano e notas de sessão.
+- [x] **CA2** · Nenhuma atualização produzida toca distância, pace, dia, tipo ou conclusão.
+- [x] **CA3** · Os limites de tamanho atuais continuam valendo para foco, notas do plano e notas da sessão.
+- [x] **CA4** · O service aplica o resultado e o comportamento visível do plano não muda quando não há IA.
+- [x] **CA5** · O spec novo prova a garantia da ADR-0002 e passa junto com os demais specs tocados.
+- [x] **CA6** · `npx jest` nos specs tocados, `npx eslint` nos arquivos alterados e `npm run build` passam.

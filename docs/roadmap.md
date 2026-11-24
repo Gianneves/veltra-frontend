@@ -9,7 +9,7 @@
 
 | Nº | Funcionalidade | Status | Depende de | PRD | Spec |
 |---|---|---|---|---|---|
-| `F01` | Backend business-rule refactor | `em andamento` | — | [PRD](./features/01-backend-business-rule-refactor/prd.md) | [Spec](./features/01-backend-business-rule-refactor/spec.md) |
+| `F01` | Backend business-rule refactor | `concluída` | — | [PRD](./features/01-backend-business-rule-refactor/prd.md) | [Spec](./features/01-backend-business-rule-refactor/spec.md) |
 | `F02` | Next workout on the server | `planejada` | `F01` | — | — |
 | `F03` | Backend security hardening | `planejada` | `F01` | — | — |
 | `F04` | AI provider resilience | `PRD pronto` | — | [PRD](./features/04-ai-provider-resilience/prd.md) | — |
