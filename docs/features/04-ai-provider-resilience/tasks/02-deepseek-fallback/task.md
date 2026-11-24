@@ -1,6 +1,6 @@
 # 02: Alternativa DeepSeek com troca e volta automáticas
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** quando o OpenAI está fora do ar ou sem saldo, os quatro caminhos de texto (insight, análise do plano, chat e pareamento) continuam sendo atendidos pelo DeepSeek; assim que o principal volta a responder, o atendimento retorna a ele sozinho.
 
@@ -16,11 +16,11 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · Falha de transporte, timeout, HTTP `401/402/403/429/5xx` ou resposta vazia nas tarefas sem streaming no principal faz a mesma chamada ser atendida pelo DeepSeek, nos quatro caminhos de texto.
-- [ ] **CA2** · Depois da falha, as chamadas dentro de `AI_FAILOVER_COOLDOWN_SECONDS` (padrão 60 s) vão direto ao alternativo; vencido o prazo, a chamada seguinte sonda o principal e, no sucesso, a marca é limpa e ele volta a atender.
-- [ ] **CA3** · Texto que não passa no parser não troca de fornecedor: continua o escalonamento cheap → premium no principal e, se o premium também falhar, a tarefa falha como hoje.
-- [ ] **CA4** · No streaming, a troca só acontece antes do primeiro token; depois disso, o texto parcial é mantido e o fluxo termina como hoje.
-- [ ] **CA5** · Com principal e alternativo falhando, a tarefa devolve o erro que o fluxo já trata (insight `failed`, chat em pt-BR, anotação ausente) e a chamada seguinte volta a tentar o principal primeiro.
-- [ ] **CA6** · Sem `OPENAI_API_KEY` e com `DEEPSEEK_API_KEY`, o alternativo atende desde a primeira chamada — inclusive a revisão do plano, que hoje exige a chave do OpenAI; sem nenhuma das duas, o fluxo segue sem IA; com o Redis fora, a IA continua tentando o principal a cada chamada.
-- [ ] **CA7** · O adaptador DeepSeek usa `https://api.deepseek.com`, `DEEPSEEK_MODEL` (padrão `deepseek-chat`), a temperatura, o teto de tokens e o timeout da tarefa, e não envia metadado de uso no streaming.
-- [ ] **CA8** · `ai.service.spec.ts` prova CA1–CA6 com adaptadores e estado falsos, sem chamada de rede; `npm run build` e o lint dos arquivos alterados passam.
+- [x] **CA1** · Falha de transporte, timeout, HTTP `401/402/403/429/5xx` ou resposta vazia nas tarefas sem streaming no principal faz a mesma chamada ser atendida pelo DeepSeek, nos quatro caminhos de texto.
+- [x] **CA2** · Depois da falha, as chamadas dentro de `AI_FAILOVER_COOLDOWN_SECONDS` (padrão 60 s) vão direto ao alternativo; vencido o prazo, a chamada seguinte sonda o principal e, no sucesso, a marca é limpa e ele volta a atender.
+- [x] **CA3** · Texto que não passa no parser não troca de fornecedor: continua o escalonamento cheap → premium no principal e, se o premium também falhar, a tarefa falha como hoje.
+- [x] **CA4** · No streaming, a troca só acontece antes do primeiro token; depois disso, o texto parcial é mantido e o fluxo termina como hoje.
+- [x] **CA5** · Com principal e alternativo falhando, a tarefa devolve o erro que o fluxo já trata (insight `failed`, chat em pt-BR, anotação ausente) e a chamada seguinte volta a tentar o principal primeiro.
+- [x] **CA6** · Sem `OPENAI_API_KEY` e com `DEEPSEEK_API_KEY`, o alternativo atende desde a primeira chamada — inclusive a revisão do plano, que hoje exige a chave do OpenAI; sem nenhuma das duas, o fluxo segue sem IA; com o Redis fora, a IA continua tentando o principal a cada chamada.
+- [x] **CA7** · O adaptador DeepSeek usa `https://api.deepseek.com`, `DEEPSEEK_MODEL` (padrão `deepseek-chat`), a temperatura, o teto de tokens e o timeout da tarefa, e não envia metadado de uso no streaming.
+- [x] **CA8** · `ai.service.spec.ts` prova CA1–CA6 com adaptadores e estado falsos, sem chamada de rede; `npm run build` e o lint dos arquivos alterados passam.
