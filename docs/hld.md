@@ -1,6 +1,6 @@
 # HLD — Veltra (High-Level Design)
 
-> **Última atualização:** 10/11/2026
+> **Última atualização:** 24/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento detalhado:** [LLD](./lld.md)
 > **Fonte de verdade:** este documento descreve o estado **as-built** do projeto. Se o código divergir, a divergência deve ser corrigida no código ou registrada aqui e no LLD.
@@ -71,7 +71,8 @@ flowchart LR
   B -->|sessão, cache, fila| R[(Redis)]
   B -->|OAuth / REST| S[Strava]
   S -->|Webhook| B
-  B -->|LangChain| O[OpenAI<br/>roteamento cheap/premium + embeddings]
+  B -->|LangChain| O[OpenAI<br/>principal: roteamento cheap/premium + embeddings]
+  B -->|LangChain| O2[DeepSeek<br/>alternativo de texto, sem embeddings]
   B -->|Swagger /api-doc| D[Documentação da API]
 ```
 
@@ -83,7 +84,7 @@ flowchart LR
 | **Borda HTTP** | Controllers NestJS, DTOs com `class-validator`, `ValidationPipe`, CORS, cookies e rate limiting. |
 | **Domínio** | Services por módulo (planos, metas, insights, coach, saúde, conquistas, analytics). |
 | **Persistência** | Entidades TypeORM, repositórios e transações. |
-| **Integrações** | Strava (OAuth, API, webhook), OpenAI/LangChain, Redis. |
+| **Integrações** | Strava (OAuth, API, webhook), OpenAI/LangChain (fornecedor principal de IA), DeepSeek (alternativo de texto), Redis. |
 | **Assíncrono** | Worker interno do webhook Strava consumindo fila Redis. |
 
 ### Princípios arquiteturais
@@ -141,7 +142,7 @@ Componentes transversais:
 | `analytics` | Estatísticas da semana atual. | Activities |
 | `achievements` | Troféus, melhores esforços e previsões. | Activities |
 | `health` | Alertas e políticas de segurança por idade. | Activities, Users |
-| `ai` | Prompts, roteamento de modelos, chamadas OpenAI/LangChain, limites de tokens e parsing. | OpenAI |
+| `ai` | Prompts, porta de fornecedor, roteamento de modelos, chamada do OpenAI com o DeepSeek como alternativa, estado do failover, limites de tokens e parsing. | OpenAI, DeepSeek, Redis |
 | `redis` | Wrapper de cache, locks e filas. | Redis |
 
 ---
@@ -224,8 +225,12 @@ Componentes transversais:
   - análise de plano → premium (JSON multi-semana persistido no plano);
   - insight de corrida → premium quando há sinal de saúde ou contexto > 6.000 caracteres;
   - chat do coach → premium quando há sinal de saúde, intenção de mudar o plano, contexto > 8.000 caracteres ou histórico > 12 mensagens.
-- Se o tier cheap devolver conteúdo que não passa no parsing, a chamada é repetida uma vez no premium (`OPENAI_MODEL_ESCALATION`, padrão ligado).
-- Cada tarefa tem teto de tokens de saída; o uso retornado pela OpenAI é registrado em log (`[ai] task=... tier=... usage=...`).
+- Se o tier cheap devolver conteúdo que não passa no parsing, a chamada é repetida uma vez no premium (`OPENAI_MODEL_ESCALATION`, padrão ligado) — só no fornecedor principal, que é o único com tier.
+- Fornecedor: toda chamada de texto começa no OpenAI (principal) e troca para o DeepSeek (alternativo) quando a falha é de transporte, timeout, HTTP `401`, `402`, `403`, `429` ou `5xx`, ou resposta vazia em chamada sem streaming. Falha de parsing e HTTP fora dessa lista não trocam de fornecedor.
+- Indisponibilidade: depois da falha que troca, o principal fica marcado por `AI_FAILOVER_COOLDOWN_SECONDS` (padrão 60 s) e as chamadas seguintes vão direto ao alternativo; vencido o prazo, a chamada seguinte sonda o OpenAI e, se ele responder, a marca é apagada e o atendimento volta sozinho. Se o alternativo também falhar, a chamada devolve o erro que o fluxo já trata e a marca é apagada.
+- Degradação: com o Redis fora, a marca é ignorada e o OpenAI é tentado a cada chamada; sem `OPENAI_API_KEY`, o DeepSeek atende desde a primeira chamada; sem nenhuma das duas, o fluxo segue sem IA.
+- O DeepSeek usa um modelo único (`DEEPSEEK_MODEL`, padrão `deepseek-chat`) em `https://api.deepseek.com`, sem tier, sem metadado de uso no streaming e sem embeddings — o vetor da corrida continua só no OpenAI.
+- Cada tarefa tem teto de tokens de saída; o uso retornado pelo fornecedor é registrado em log com quem atendeu (`[ai] task=... tier=... model=... provider=... usage=...`).
 - Modos: `OPENAI_MODEL_ROUTING=auto|cheap|premium` (padrão `auto`). Nomes dos modelos vêm de `OPENAI_MODEL_CHEAP` e `OPENAI_MODEL_PREMIUM`.
 
 ### 6.8 Saúde e segurança
@@ -325,6 +330,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 - Paginação de atividades.
 - Limites de contexto: 20 mensagens de histórico, 10 atividades recentes, 3 planos futuros, 5 propostas.
 - Timeouts de IA: 45 s (plano), 30 s (insight), 60 s (coach), 20 s (pareamento).
+- A primeira chamada com o fornecedor principal fora paga o timeout antes da troca; dentro do cooldown, as chamadas vão direto ao alternativo.
 - Teto de tokens de saída por tarefa: 300 (pareamento), 700 (genérico), 900 (insight), 1.400 (coach), 2.000 (análise de plano).
 - Índices únicos em `activities.activityStravaId`, `users.stravaId` e `insights.activityId`.
 
@@ -333,11 +339,12 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 - Fila Redis com deduplicação, retentativas e lista de falhas.
 - Worker interno do webhook com lock de processamento por instância.
 - Operações em lote de sessões usando transação.
+- IA com fornecedor alternativo automático e volta ao principal depois do cooldown; o estado vive no Redis e a leitura/escrita dele degrada sem derrubar a IA.
 
 ### Observabilidade
 
 - Logs via `console.error`/`console.warn` em falhas de IA, fila e Strava.
-- Uso de tokens das chamadas de IA é registrado em `console.info` (`[ai] task=... tier=... usage=...`).
+- Uso de tokens das chamadas de IA é registrado em `console.info` (`[ai] task=... tier=... model=... provider=... usage=...`), com o fornecedor que atendeu.
 - **Lacuna:** não há métricas, tracing ou logging estruturado, nem orçamento/limite de gasto por usuário.
 
 ### CI/CD
@@ -363,6 +370,7 @@ Estas regras não podem ser violadas sem atualização explícita deste HLD e do
 | Gráficos de Análises | Distância semanal, evolução de ritmo e zonas de FC usam dados estáticos de demonstração; apenas a elevação total é calculada das atividades. |
 | Busca semântica | O embedding só é gerado no cadastro manual da atividade (`POST /activities`); importações via webhook/resync usam `upsert` e não geram embedding. Não há endpoint de busca por similaridade. |
 | Dimensão do embedding | O modelo `text-embedding-3-small` gera 1536 dimensões; a entidade declara `vector` com `length: 1563` (inconsistência a revisar). |
+| Fornecedor alternativo de IA | O DeepSeek atende texto quando o OpenAI está fora ou sem saldo, com volta automática ao principal; embeddings e busca semântica continuam só no OpenAI, e a qualidade do texto alternativo é melhor-esforço, sem métrica. |
 | Testes do backend | Três suítes têm falha pré-existente de DI: `auth.service.spec`, `auth.controller.spec`, `users.service.spec`. `insights.service.spec` já passa. |
 | Lint do frontend | Não há configuração de ESLint; `npm run lint` (`next lint`) fica interativo. |
 | Lint do backend | O baseline tem erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados. |
