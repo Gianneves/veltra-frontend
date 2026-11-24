@@ -536,6 +536,10 @@ service apenas as aplica, sem tocar distância, pace, dia, tipo ou conclusão. E
 `OPENAI_API_KEY`, sem plano ou sem revisão, nada é gravado. Prompt, modelo e fluxo de propostas
 não fazem parte deste caminho.
 
+O `coachNotes` da primeira semana é montado com as notas de padrão e meta do passo anterior, o
+`overview` e o `rationale` da revisão; quando a revisão chega, essa escrita sobrescreve o valor do
+passo 10, e as notas de calibração e de idade permanecem apenas na geração.
+
 ### 8.3 Cálculo de paces
 
 Constantes:
