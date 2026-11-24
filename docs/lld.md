@@ -108,12 +108,14 @@ Ordem de configuração:
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | OAuth e API Strava. |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN`, `STRAVA_WEBHOOK_CALLBACK_URL` | Assinatura e verificação do webhook. |
 | `SECRET_KEY_JWT` | Assinatura do JWT; ausente do `.env.example`, cai em `insecure-dev-secret`. |
-| `OPENAI_API_KEY` | IA e embeddings. |
+| `OPENAI_API_KEY` | Fornecedor principal de IA e embeddings. |
 | `OPENAI_MODEL_ROUTING` | `auto` (padrão), `cheap` ou `premium`; modo de seleção de modelo. |
 | `OPENAI_MODEL_CHEAP` | Modelo do tier barato (padrão `gpt-4o-mini`). |
 | `OPENAI_MODEL_PREMIUM` | Modelo do tier premium (padrão `gpt-4o`). |
 | `OPENAI_MODEL_ESCALATION` | `false` desliga o retry no premium quando o parsing falha (padrão ligado). |
-| `DEEPSEEK_API_KEY` | Fornecedor alternativo de IA da `F04`; existe no `.env` local e no `.env.example`, ainda sem uso no código. |
+| `DEEPSEEK_MODEL` | Modelo do fornecedor alternativo de IA (padrão `deepseek-chat`). |
+| `DEEPSEEK_API_KEY` | Fornecedor alternativo de IA da `F04`; atende quando o principal falha ou fica sem saldo. |
+| `AI_FAILOVER_COOLDOWN_SECONDS` | Segundos em que o principal fica marcado indisponível depois de uma falha (padrão `60`; valor `<= 0` desliga o cooldown). |
 | `ENCRYPTION_KEY` | Existe só no `.env` local (não versionado), **ausente do `.env.example`** e **sem uso no código atual**. |
 
 ---
@@ -975,7 +977,11 @@ No frontend, `streamCoachMessage` lê o body via `ReadableStream`, separa frames
 ## 12. AI service
 
 Arquivos: `src/ai/ai-provider.ts` (contrato da porta e erro tipado de indisponibilidade),
-`src/ai/openai-provider.ts` (adaptador do OpenAI, roteamento e embeddings),
+`src/ai/provider-runtime.ts` (timeout e tradução de falha comuns aos adaptadores),
+`src/ai/openai-provider.ts` (adaptador do fornecedor principal, roteamento e embeddings),
+`src/ai/deepseek-provider.ts` (adaptador do fornecedor alternativo),
+`src/ai/ai-failover.service.ts` (ordem dos fornecedores, troca, cooldown, sonda e volta),
+`src/ai/ai-provider-state.service.ts` (chaves `ai:*` do estado do fornecedor),
 `src/ai/ai.service.ts` (prompts, sinais, parsing, escalonamento e log) e `src/ai/model-router.ts`
 (seleção de modelo).
 
@@ -988,38 +994,51 @@ Arquivos: `src/ai/ai-provider.ts` (contrato da porta e erro tipado de indisponib
 | `generatePlanReview` | `plan_review` | premium | 0.2 | 45 s | 2.000 |
 | `classifyActivityMatch` | `activity_match` | cheap | 0 | 20 s | 300 |
 
-Sem `OPENAI_API_KEY`, as funções retornam `null` (e o fluxo segue sem IA).
+Sem nenhum fornecedor configurado (`OPENAI_API_KEY` ou `DEEPSEEK_API_KEY`), as funções retornam
+`null` (e o fluxo segue sem IA). Cada texto da tabela pode ser atendido pelo fornecedor alternativo,
+com o mesmo prompt, temperatura, teto de tokens e timeout; o embedding é a exceção e continua só no
+principal.
 
 **Porta (`AiProvider`).** Todo texto gerado por IA é pedido pela porta `src/ai/ai-provider.ts`; o
-`OpenAiProvider` (`src/ai/openai-provider.ts`) é o adaptador do fornecedor principal. O `AiService`
-monta prompt e mensagens, pede o tier à porta e delega transporte, teto e timeout ao adaptador;
-nenhum service de domínio importa SDK de fornecedor.
+`AiFailoverService` (`src/ai/ai-failover.service.ts`) é a implementação registrada na porta e
+escolhe entre o `OpenAiProvider` (`src/ai/openai-provider.ts`), principal, e o `DeepSeekProvider`
+(`src/ai/deepseek-provider.ts`), alternativo. O `AiService` monta prompt e mensagens, pede o tier à
+porta e delega transporte, teto e timeout ao adaptador; nenhum service de domínio importa SDK de
+fornecedor.
 
 | Peça | Conteúdo |
 | --- | --- |
 | `AiProviderRequest` | `task`, `messages` (`{ role: 'system' \| 'user' \| 'assistant', content }`), `temperature`, `maxTokens`, `timeoutMs` e `routing` com os sinais de §12.1 |
-| `AiProviderResult` | `text`, `decision` (`tier`, `model`, `reason`) e `usage` |
-| `AiProvider` | métodos `decide(request)`, `complete(request, tier)`, `stream(request, tier)` com `onToken` e `canEscalate()` |
-| `AiProviderUnavailableError` | `provider`, `reason` (`http`, `transport` ou `timeout`), `status` e `cause` |
+| `AiProviderResult` | `text`, `decision` (`tier`, `model`, `reason`), `usage` e `provider` (`openai` ou `deepseek`) |
+| `AiProvider` | métodos `decide(request)`, `complete(request, tier)`, `stream(request, tier)` com `onToken`, `canEscalate(provider)` e `isConfigured()` |
+| `AiProviderUnavailableError` | `provider`, `reason` (`http`, `transport`, `timeout` ou `empty`), `status` e `cause` |
 
 - O adaptador converte `messages` em `SystemMessage`/`HumanMessage`/`AIMessage`, aplica `maxTokens`
-  ao `ChatOpenAI` e aborta a chamada em `timeoutMs`; valor `<= 0` desliga o timeout.
+  ao `ChatOpenAI` e aborta a chamada em `timeoutMs`; valor `<= 0` desliga o timeout. Timeout e
+  tradução de falha vivem em `provider-runtime.ts` e valem para os dois adaptadores.
 - Transporte, timeout e resposta HTTP não-2xx viram `AiProviderUnavailableError`. A política de
-  troca de fornecedor não vive no adaptador.
-- Resposta `2xx` vazia não vira erro: segue o parser e o escalonamento de §12.1.
+  troca de fornecedor não vive no adaptador: o `AiFailoverService` classifica a falha (§12.1).
+- Resposta `2xx` vazia não vira erro no adaptador: em `complete`, o failover a trata como
+  indisponibilidade (`reason: 'empty'`) e troca de fornecedor; no streaming, o texto vazio segue o
+  fluxo.
 - `decide` usa `AiModelRouter.decide` e emite o log de decisão
-  (`[ai] task=... tier=... model=... reason=...`); `canEscalate` reflete `OPENAI_MODEL_ESCALATION`.
+  (`[ai] task=... tier=... model=... reason=...`); o failover delega `decide` ao principal — o tier
+  é uma escolha do OpenAI — e `canEscalate(provider)` ao adaptador que atendeu ou falhou.
+- `isConfigured()` responde pela chave de cada adaptador e é o gate de "há IA configurada" usado
+  pelo `AiService` e pelo `enrichPlanWithAi`.
 - Embeddings ficam **fora** da porta: `OpenAiProvider.createEmbedding(text)`
   (`text-embedding-3-small`) é chamado por `AiService.createEmbedding`, e a falha dele não
-  interrompe o fluxo da corrida (§6.3).
-- `AiModule` registra `AiModelRouter`, `OpenAiProvider` e a porta (`useExisting: OpenAiProvider`) e
-  exporta só o `AiService`.
+  interrompe o fluxo da corrida (§6.3). O alternativo não gera vetor.
+- `AiModule` registra `AiModelRouter`, `OpenAiProvider`, `DeepSeekProvider`,
+  `AiProviderStateService` e `AiFailoverService`, registra a porta como
+  `useExisting: AiFailoverService`, importa `RedisModule` e exporta `AiService` e
+  `AiProviderStateService`.
 
 ### 12.1 Roteamento de modelos
 
 `AiModelRouter` (`src/ai/model-router.ts`) escolhe o tier antes da chamada, sem custo adicional de
-classificação. Depois da porta, o router é usado **só pelo adaptador** (`OpenAiProvider`): o
-`AiService` não o injeta e fala com a porta.
+classificação. Depois da porta, o router é usado **só pelo adaptador principal** (`OpenAiProvider`):
+o `AiService` não o injeta e fala com a porta.
 
 - `OPENAI_MODEL_ROUTING=auto` (padrão): decide por tarefa/complexidade; `cheap` ou `premium` forçam o tier.
 - Nomes: `OPENAI_MODEL_CHEAP` (padrão `gpt-4o-mini`) e `OPENAI_MODEL_PREMIUM` (padrão `gpt-4o`).
@@ -1031,8 +1050,13 @@ classificação. Depois da porta, o router é usado **só pelo adaptador** (`Ope
 - Sinais textuais: `PLAN_CHANGE_PATTERN` (mudar, ajustar, trocar, reduzir, ativar etc.) e `HEALTH_SIGNAL_PATTERN` (dor, lesão, sintoma, saúde, alerta etc.), disponíveis como funções exportadas (`hasPlanChangeIntent`, `hasHealthSignal`) além dos métodos da classe; o `AiService` usa as funções para montar `routing`.
 - O adaptador cria o `ChatOpenAI` do tier decidido com `createModel(tier, task, temperature, maxTokens)`; o streaming continua suportado pelo `stream` do modelo.
 - Teto por tarefa: `MAX_TOKENS_BY_TASK` é exportado; o `AiService` envia o teto no pedido e o adaptador o aplica ao modelo, sem segunda tabela.
-- Escalonamento: em `invokeParsed`, se o cheap devolver saída que não passa no parser, uma única nova chamada usa o premium (`OPENAI_MODEL_ESCALATION=false` desliga). No streaming, o fallback premium só ocorre se nenhum token foi emitido.
-- Uso: `console.info('[ai] task=... tier=... model=... usage=...')` quando a OpenAI retorna `usage_metadata`.
+- Escalonamento: em `invokeParsed`, se o cheap devolver saída que não passa no parser, uma única nova chamada usa o premium (`OPENAI_MODEL_ESCALATION=false` desliga). No streaming, o fallback premium só ocorre se nenhum token foi emitido. O escalonamento existe só no principal: `canEscalate(provider)` responde `false` para o alternativo, que tem um modelo único.
+- Fornecedor: a chamada começa no principal e o `AiFailoverService` troca para o alternativo quando a falha é de transporte, timeout, HTTP `401`, `402`, `403`, `429` ou `5xx`, ou resposta vazia em `complete`. HTTP fora dessa lista e falha de parsing não trocam de fornecedor.
+- Indisponibilidade: depois da falha que troca, o principal fica marcado em `ai:provider:primary:down` por `AI_FAILOVER_COOLDOWN_SECONDS` e as chamadas dentro do prazo vão direto ao alternativo. Vencido o prazo, a chamada seguinte sonda o principal; no sucesso, a marca é apagada e ele volta a atender; na falha, a marca é renovada.
+- Falha dupla: com o alternativo também falhando, a chamada devolve o erro do alternativo, a marca é apagada e a chamada seguinte volta a tentar o principal primeiro. No streaming, a troca só acontece antes do primeiro token; depois dele, o texto parcial é mantido e o fluxo termina como hoje.
+- Configuração: sem `OPENAI_API_KEY`, o alternativo atende desde a primeira chamada e nenhuma marca é gravada; com apenas o principal configurado, ele é tentado mesmo com a marca; com o Redis fora, a marca é ignorada e o principal é tentado a cada chamada.
+- Alternativo: modelo único (`DEEPSEEK_MODEL`, padrão `deepseek-chat`) em `https://api.deepseek.com`, sem tier e com `streamUsage: false` no streaming; a temperatura, o teto e o timeout são os do pedido.
+- Uso: `console.info('[ai] task=... tier=... model=... provider=... usage=...')` quando o fornecedor retorna `usage_metadata`; a linha de decisão continua sendo a do roteador do principal.
 
 ### 12.2 Onde o custo é consumido
 
@@ -1044,6 +1068,7 @@ classificação. Depois da porta, o router é usado **só pelo adaptador** (`Ope
 | Pareamento de atividade | Quando o score heurístico é ambíguo | 1 classificação cheap (às vezes premium por escalonamento) |
 
 - O histórico do chat é limitado a 20 mensagens, mas o contexto inclui perfil, metas, 3 planos futuros e 10 atividades recentes.
+- Cada chamada da tabela começa pelo principal e pode ser atendida pelo alternativo quando o principal está marcado indisponível: o custo muda de fornecedor, não o fluxo. O embedding continua só no principal, então uma corrida sem OpenAI não ganha vetor e o fluxo segue (§6.3).
 - Não há orçamento por usuário nem cache de respostas do chat; insights e embeddings já são persistidos e reaproveitados.
 - O resync evita regenerar insight quando o registro está `completed`.
 
@@ -1169,8 +1194,11 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 | `strava:events` | fila de eventos | sem TTL |
 | `strava:events:failed` | eventos que falharam | sem TTL |
 | `strava:evt:<...>` | deduplicação de webhook | 1 h |
+| `ai:provider:primary:down` | instante (ms) de expiração da indisponibilidade do fornecedor principal | `AI_FAILOVER_COOLDOWN_SECONDS` |
 
 `RedisService` expõe `set`, `get`, `del`, `setNx`, `lpush`, `rpop` e `llen`.
+
+`AiProviderStateService` agrupa as chaves `ai:*` do estado do fornecedor. Toda leitura e escrita tolera Redis fora: a marca é ignorada e o principal volta a ser tentado a cada chamada, porque indisponibilidade de cache não pode derrubar a IA.
 
 ---
 
@@ -1393,6 +1421,7 @@ corrigir sem pedido explícito.
 - **Dados estáticos em Análises**: os gráficos de distância semanal, ritmo e zonas de FC ainda usam constantes de demonstração.
 - **Embedding sem busca**: o vetor é gerado apenas no `create` manual (`POST /activities`); webhook/resync usam `upsert` com `generateAI = false` e não geram embedding. Não há consulta por similaridade.
 - **Dimensão do vetor**: `1563` na entidade vs `1536` do modelo.
+- **Embedding só no principal**: o fornecedor alternativo não gera vetor; com o principal fora, a corrida não ganha embedding e o fluxo segue. A busca semântica continua fora de escopo.
 - **Sincronização no login**: `UsersService.createOrUpdate` importa todo o histórico; em contas grandes pode demorar.
 - **Worker do webhook**: roda no processo da API; não há garantia de processamento único entre múltiplas instâncias (a fila Redis evita perda, mas não coordena concorrência).
 - **Eventos falhos**: ficam em `strava:events:failed` sem painel/retry automático.
@@ -1400,7 +1429,7 @@ corrigir sem pedido explícito.
 - **Atividade legada sem dono**: como `findByStravaId` e `upsert` resolvem pelo par `activityStravaId` + dono, uma atividade gravada sem `userId` (legado anterior ao escopo por usuário) fica invisível para a ingestão: não é atualizada nem apagada pelo webhook, e o ID bloqueia a criação de um registro novo por causa da coluna única. Não há script nem migration para reatribuí-la.
 - **Consentimento de saúde**: as políticas de idade são aplicadas mesmo sem consentimento registrado.
 - **`ENCRYPTION_KEY`**: variável existente só no `.env` local (ausente do `.env.example`), sem uso no código.
-- **Observabilidade**: apenas logs de erro; sem métricas ou tracing.
+- **Observabilidade**: apenas logs (`console.info`, `console.warn` e `console.error`); o log de uso de IA registra o fornecedor que atendeu (`provider=...`), mas não há métricas, tracing nem alerta de disponibilidade por fornecedor.
 - **Testes do backend**: baseline com 3 suítes falhando por DI (`insights.service.spec` já passa); o CI as ignora até serem corrigidas.
 - **Lint do backend**: baseline com erros pré-existentes; o CI faz lint apenas dos arquivos TS alterados.
 - **Lint do frontend**: não configurado.
