@@ -489,6 +489,12 @@ Leitura: `findCurrent`, `findAll` e `findByWeek` normalizam sessão de descanso 
 distância/pace zero, realizados nulos) e devolvem `plannedWeeklyKm` como a soma das distâncias
 planejadas das sessões não-descanso, em metros; a normalização não grava no banco.
 
+Backfill da anotação: `findCurrent` e `findAll` disparam, sem `await`, a revisão da semana atual
+(§8.2) quando o plano está sem `focus` e sem `coachNotes` e há fornecedor de IA configurado; a
+resposta é a mesma e chega antes da revisão. `findAll` avalia só o plano cuja `weekStart` é a
+segunda-feira da semana corrente, dentro da lista já carregada, e `findByWeek` não dispara. A chave
+`ai:plan-review:attempt:<planId>` (§16) limita a uma tentativa por plano a cada 60 s.
+
 `PUT /training-plans/:planId/sessions/:sessionId/activity` recusa vínculo de atividade com sessão de
 descanso com `400` e `code: "REST_SESSION"`; desvincular continua permitido.
 
@@ -529,14 +535,29 @@ estado final, para não apagar dia, tipo ou distância nem corromper `plannedWee
 12. Faz backfill de atividades recentes (desde `startWeek - 1 dia`, até 50, só corrida, sem vínculo existente).
 
 Enriquecimento por IA (passo 11). É anotação, não mudança de plano (ADR-0002, HLD §9.7): monta
-o contexto do atleta, chama `AiService.generatePlanReview` e entrega a revisão ao construtor puro
-`buildPlanAnnotations` (`src/training-plans/plan-annotations.ts`). O construtor devolve somente as
-atualizações de `focus`, `coachNotes` (notas do plano) e `notes` (dicas do coach nas sessões), e o
-service apenas as aplica, sem tocar distância, pace, dia, tipo ou conclusão. Ele trunca `focus` em
-120 caracteres, `coachNotes` em 1.200 e `notes` em 500. A revisão de uma semana é casada pelo
-`weekStart` do plano; dica sem texto e revisão de semana sem plano não geram atualização. Sem
-`OPENAI_API_KEY`, sem plano ou sem revisão, nada é gravado. Prompt, modelo e fluxo de propostas
-não fazem parte deste caminho.
+o contexto do atleta pelo construtor puro `buildPlanReviewContext`
+(`src/training-plans/plan-review-context.ts`), compartilhado com o backfill da leitura, chama
+`AiService.generatePlanReview` e entrega a revisão ao construtor puro `buildPlanAnnotations`
+(`src/training-plans/plan-annotations.ts`). O construtor devolve somente as atualizações de `focus`,
+`coachNotes` (notas do plano) e `notes` (dicas do coach nas sessões), e o service apenas as aplica
+pelo mesmo `applyPlanAnnotations`, sem tocar distância, pace, dia, tipo ou conclusão. Ele trunca
+`focus` em 120 caracteres, `coachNotes` em 1.200 e `notes` em 500. A revisão de uma semana é casada
+pelo `weekStart` do plano; dica sem texto e revisão de semana sem plano não geram atualização. Sem
+nenhum fornecedor configurado, sem plano ou sem revisão, nada é gravado. Prompt, modelo e fluxo de
+propostas não fazem parte deste caminho.
+
+Backfill na leitura. Quando `findCurrent` ou `findAll` encontram o plano da semana atual sem `focus`
+e sem `coachNotes`, o backfill roda em background, sem alterar a resposta: resolve a meta por
+`plan.goalId` com escopo de usuário, refaz o perfil com `{ recentOnly: true }` e recalcula paces e
+`assessment` para o horizonte que resta até a meta
+(`max(ceil((targetDate − plan.weekStart) / 7 dias), 1)`). O contexto cobre só essa semana — o
+`weekStart` do plano, volume e longão somados das sessões persistidas e as sessões com dia, tipo, km e
+pace; `phase` sai nulo e `workouts` vazio porque a fase e os nomes de treino de qualidade não são
+persistidos. Usa o mesmo `generatePlanReview` e o mesmo `buildPlanAnnotations`, com `weekOneNotes`
+vazio, porque as notas de padrão e de meta só existem na geração. Aplica só `focus`, `coachNotes` e
+`notes`, via `applyPlanAnnotations`. Sem meta encontrada, sem fornecedor ou sem revisão, nada é
+gravado; falha de IA, banco ou Redis vai para o log e a leitura seguinte tenta de novo depois da
+trava.
 
 O `coachNotes` da primeira semana é montado com as notas de padrão e meta do passo anterior, o
 `overview` e o `rationale` da revisão; quando a revisão chega, essa escrita sobrescreve o valor do
@@ -1203,10 +1224,11 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 | `strava:evt:<...>` | deduplicação de webhook | 1 h |
 | `ai:provider:primary:down` | instante (ms) de expiração da indisponibilidade do fornecedor principal | `AI_FAILOVER_COOLDOWN_SECONDS` |
 | `ai:provider:notice:<userId>` | identificador do episódio (o instante de expiração de `ai:provider:primary:down`) em que o aviso único do chat já foi mostrado | 7 dias; apagada quando o principal atende |
+| `ai:plan-review:attempt:<planId>` | instante da tentativa de backfill da anotação do plano | 60 s |
 
 `RedisService` expõe `set`, `get`, `del`, `setNx`, `lpush`, `rpop` e `llen`.
 
-`AiProviderStateService` agrupa as chaves `ai:*` do estado do fornecedor. Toda leitura e escrita tolera Redis fora: a marca é ignorada e o principal volta a ser tentado a cada chamada, porque indisponibilidade de cache não pode derrubar a IA. A chave de aviso é consumida pelo `CoachService` quando a resposta do chat vem do alternativo e apagada quando o principal atende; com o Redis fora, o aviso é omitido em vez de arriscar repetição.
+`AiProviderStateService` agrupa as chaves `ai:*` do estado do fornecedor. Toda leitura e escrita tolera Redis fora: a marca é ignorada e o principal volta a ser tentado a cada chamada, porque indisponibilidade de cache não pode derrubar a IA. A chave de aviso é consumida pelo `CoachService` quando a resposta do chat vem do alternativo e apagada quando o principal atende; com o Redis fora, o aviso é omitido em vez de arriscar repetição. A chave de tentativa do backfill é gravada pelo `TrainingPlansService` com `setNx` antes de disparar a revisão; com o Redis fora, a tentativa é liberada, porque perder o cache no máximo repete um backfill.
 
 ---
 
@@ -1448,6 +1470,7 @@ corrigir sem pedido explícito.
 - **Descanso legado**: planos já gravados com sessão de descanso concluída ou com vínculo são normalizados apenas na leitura; o banco continua com o estado antigo e não há script nem migration.
 - **Unidade de `plannedWeeklyKm`**: o nome diz “Km”, mas o valor está em metros e é derivado das sessões; quem ler o campo precisa tratar a unidade.
 - **Trava só nas rotas de edição**: `PUT .../sessions/:sessionId` e `PUT .../sessions/batch` travam a linha do plano; geração, pareamento e ajuste de volume não travam, então uma geração concorrente com uma edição pode sobrescrever a semana em edição.
+- **Custo do backfill em leitura**: cada plano da semana atual sem `focus` e `coachNotes` pode gerar uma revisão por minuto enquanto for aberto. A trava de 60 s, o recorte da semana atual e a condição de anotação ausente limitam o gasto; se o fornecedor nunca voltar, a leitura continua rápida porque o disparo não tem `await`.
 - **Sem índice único de dia**: a garantia de dia único na edição é da validação no estado final dentro da transação; o armazenamento continua sem restrição, e a garantia de banco segue com a feature de migrations.
 - **Ordem de trava no ajuste de volume**: o ajuste grava as sessões antes de atualizar o plano, ao contrário da edição (plano → sessões); uma edição concorrente com o pareamento da mesma sessão pode, em tese, ser abortada pelo Postgres por deadlock, sem deixar dado inconsistente.
 
