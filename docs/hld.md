@@ -1,6 +1,6 @@
 # HLD — Veltra (High-Level Design)
 
-> **Última atualização:** 24/11/2026
+> **Última atualização:** 25/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento detalhado:** [LLD](./lld.md)
 > **Fonte de verdade:** este documento descreve o estado **as-built** do projeto. Se o código divergir, a divergência deve ser corrigida no código ou registrada aqui e no LLD.
@@ -187,6 +187,10 @@ Componentes transversais:
 7. Distribui as sessões na semana respeitando dias de corrida, longão, qualidade e recuperação.
 8. Persiste plano + sessões e, em background, enriquece com notas da IA.
 9. Faz backfill de atividades recentes para vincular ao novo plano.
+
+Na leitura, `GET /training-plans/current` e `GET /training-plans` podem disparar em background a
+revisão da semana atual quando ela ficou sem foco e notas; a resposta não espera a IA e a trava
+`ai:plan-review:attempt:<planId>` limita a uma tentativa por minuto (LLD §8.1, §8.2 e §16).
 
 ### 6.4 Insight por corrida
 
