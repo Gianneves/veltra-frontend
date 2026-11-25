@@ -1,6 +1,6 @@
 # LLD — Veltra (Low-Level Design)
 
-> **Última atualização:** 24/11/2026
+> **Última atualização:** 25/11/2026
 > **Escopo:** frontend `veltra-frontend` + backend `veltra-backend`
 > **Documento de contexto:** [HLD](./hld.md)
 > **Fonte de verdade:** este documento descreve a implementação **as-built**. Divergências entre código e documento devem ser resolvidas na mesma tarefa.
@@ -972,6 +972,13 @@ Regras adicionais:
 
 No frontend, `streamCoachMessage` lê o body via `ReadableStream`, separa frames por `\n\n` e faz o parse de `event:`/`data:`.
 
+Quando a resposta vem do fornecedor alternativo e é a primeira de um episódio de falha, o
+`CoachService` acrescenta ao final do texto a linha fixa em pt-BR de aviso de instabilidade. A linha
+é gravada junto com a mensagem e chega em `message.content` no `done`; não há campo nem evento novo.
+O aviso aparece uma vez por atleta por episódio, não se repete nas mensagens seguintes e é apagado
+quando o principal volta a atender um chat. Se os dois fornecedores falharem, a mensagem de erro em
+pt-BR não recebe o aviso.
+
 ---
 
 ## 12. AI service
@@ -1195,10 +1202,11 @@ Arquivo: `src/achievements/achievement-rules.ts`.
 | `strava:events:failed` | eventos que falharam | sem TTL |
 | `strava:evt:<...>` | deduplicação de webhook | 1 h |
 | `ai:provider:primary:down` | instante (ms) de expiração da indisponibilidade do fornecedor principal | `AI_FAILOVER_COOLDOWN_SECONDS` |
+| `ai:provider:notice:<userId>` | identificador do episódio (o instante de expiração de `ai:provider:primary:down`) em que o aviso único do chat já foi mostrado | 7 dias; apagada quando o principal atende |
 
 `RedisService` expõe `set`, `get`, `del`, `setNx`, `lpush`, `rpop` e `llen`.
 
-`AiProviderStateService` agrupa as chaves `ai:*` do estado do fornecedor. Toda leitura e escrita tolera Redis fora: a marca é ignorada e o principal volta a ser tentado a cada chamada, porque indisponibilidade de cache não pode derrubar a IA.
+`AiProviderStateService` agrupa as chaves `ai:*` do estado do fornecedor. Toda leitura e escrita tolera Redis fora: a marca é ignorada e o principal volta a ser tentado a cada chamada, porque indisponibilidade de cache não pode derrubar a IA. A chave de aviso é consumida pelo `CoachService` quando a resposta do chat vem do alternativo e apagada quando o principal atende; com o Redis fora, o aviso é omitido em vez de arriscar repetição.
 
 ---
 
@@ -1255,6 +1263,8 @@ Módulos por domínio:
 `coach/chat/page.tsx`:
 
 - Exibe mensagens em markdown (`react-markdown` + `remark-gfm`).
+- O aviso único de instabilidade chega dentro de `message.content`; a página continua renderizando o
+  markdown e nenhum campo, componente ou evento muda.
 - Renderiza cards de proposta com diff e botões aplicar/descartar.
 - Aplica uma proposta via `applySessionChange` ou todas via `applySessionsBatch`.
 - Mostra rejeições e mensagens de erro.
