@@ -1,6 +1,6 @@
 # 04: Backfill da anotação do plano na leitura
 
-**Status:** em andamento
+**Status:** concluída
 
 **Objetivo:** o plano da semana atual que ficou sem análise, foco ou dicas por causa de uma falha de IA recebe esse conteúdo em background quando o atleta o abre, assim que um fornecedor estiver respondendo, sem atrasar nem alterar a resposta da leitura.
 
@@ -16,9 +16,9 @@
 
 ## Critérios de aceite
 
-- [ ] **CA1** · `GET /training-plans/current` com plano sem `focus` e sem `coachNotes` dispara a revisão em background e devolve a mesma resposta, no mesmo tempo, sem esperar a IA.
-- [ ] **CA2** · Plano com `focus` ou `coachNotes` preenchido não dispara backfill.
-- [ ] **CA3** · `GET /training-plans` avalia só o plano da semana atual e não bloqueia a resposta.
-- [ ] **CA4** · A trava por plano impede repetir a tentativa dentro de 60 s; passado o prazo, a leitura seguinte tenta de novo.
-- [ ] **CA5** · O backfill grava apenas `focus`, `coachNotes` e `notes`, nunca distância, pace, dia, tipo ou conclusão de sessão; `training-plans.service.spec.ts` prova CA1–CA5.
-- [ ] **CA6** · Sem nenhum fornecedor configurado, a leitura não dispara chamada de IA.
+- [x] **CA1** · `GET /training-plans/current` com plano sem `focus` e sem `coachNotes` dispara a revisão em background e devolve a mesma resposta, no mesmo tempo, sem esperar a IA.
+- [x] **CA2** · Plano com `focus` ou `coachNotes` preenchido não dispara backfill.
+- [x] **CA3** · `GET /training-plans` avalia só o plano da semana atual e não bloqueia a resposta.
+- [x] **CA4** · A trava por plano impede repetir a tentativa dentro de 60 s; passado o prazo, a leitura seguinte tenta de novo.
+- [x] **CA5** · O backfill grava apenas `focus`, `coachNotes` e `notes`, nunca distância, pace, dia, tipo ou conclusão de sessão; `training-plans.service.spec.ts` prova CA1–CA5.
+- [x] **CA6** · Sem nenhum fornecedor configurado, a leitura não dispara chamada de IA.

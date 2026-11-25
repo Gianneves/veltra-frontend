@@ -12,7 +12,7 @@
 | `F01` | Backend business-rule refactor | `concluída` | — | [PRD](./features/01-backend-business-rule-refactor/prd.md) | [Spec](./features/01-backend-business-rule-refactor/spec.md) |
 | `F02` | Next workout on the server | `planejada` | `F01` | — | — |
 | `F03` | Backend security hardening | `planejada` | `F01` | — | — |
-| `F04` | AI provider resilience | `em andamento` | — | [PRD](./features/04-ai-provider-resilience/prd.md) | [Spec](./features/04-ai-provider-resilience/spec.md) |
+| `F04` | AI provider resilience | `concluída` | — | [PRD](./features/04-ai-provider-resilience/prd.md) | [Spec](./features/04-ai-provider-resilience/spec.md) |
 
 ---
 
